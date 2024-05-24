@@ -1,0 +1,6 @@
+dist
+web/dashboard/dist
+web/dashboard/node_modules
+web/dashboard/package-lock.json
+.idea
+.DS_Store

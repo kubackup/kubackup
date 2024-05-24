@@ -1,0 +1,18 @@
+server:
+  name: "kubackup"
+  debug: false
+  bind:
+    host: 0.0.0.0
+    port: 8012
+prometheus:
+  enable: true
+jwt:
+  key: "yourkey"
+  maxAge: 86400
+data:
+  noCache: false
+  cacheDir: /Users/tanyi/Documents/gocode/cache
+logger:
+  level: info
+
+

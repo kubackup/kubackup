@@ -1,0 +1,14 @@
+.vscode
+.idea
+.DS_Store
+*.iml
+go.sum
+dist
+web/dashboard/dist
+web/dashboard/node_modules
+web/dashboard/package-lock.json
+cmd/web/dashboard
+pkg/restic_source
+examples/db
+examples/cache
+examples/log
