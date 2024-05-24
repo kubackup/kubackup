@@ -49,8 +49,7 @@ build_osx_amd64:
 build_osx_arm64:
 	GOOS=darwin GOARCH=arm64 $(GOBUILD) -trimpath $(LDFLAGS) -o $(BUILDDIR)/kubackup_server_$(APPVERSION)_darwin_arm64 $(MAIN)
 
-# 构建 Docker 镜像到私库
+# 构建 Docker 镜像
 build_image:
-	docker login
 	docker buildx build -t kubackup/kubackup:${VERSION} --platform=linux/arm64,linux/amd64 . --push
 

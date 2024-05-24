@@ -4,7 +4,7 @@ FROM node:14.18.2 AS buildvue
 WORKDIR /dowell/
 COPY . /dowell/
 RUN --mount=type=cache,target=/dowell/web/dashboard/node_modules cd /dowell/web/dashboard &&\
-    npm config set registry https://registry.npm.taobao.org && npm install
+    npm config set registry https://registry.npmmirror.com && npm install
 RUN --mount=type=cache,target=/dowell/web/dashboard/node_modules cd /dowell/web/dashboard &&\
     npm run build:prod
 
