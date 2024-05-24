@@ -87,6 +87,6 @@ func defaultConfig() *config.Config {
 	c.Jwt.MaxAge = 1800
 	c.Server.Bind.Port = 8012
 	c.Server.Bind.Host = ""
-	c.Prometheus.Enable = true
+	c.Prometheus.Enable = false
 	return c
 }

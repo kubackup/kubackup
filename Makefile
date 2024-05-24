@@ -19,6 +19,7 @@ LDFLAGS=-ldflags "-s -w -X backup.GitTag=${GITVERSION} -X backup.BuildTime=${BUI
 
 
 all: build_web_dashboard all_bin
+	$(BASEPATH)/hashsum.sh
 
 all_bin: clean build_linux_amd64 build_linux_arm64 build_osx_amd64 build_osx_arm64
 
@@ -27,15 +28,16 @@ clean:
 
 # 构建 web dashboard
 build_web_dashboard:
-	cd $(DASHBOARDDIR) && npm config set registry https://registry.npm.taobao.org && npm install && npm run build:prod
+	cd $(DASHBOARDDIR) && npm config set registry registry.npmmirror.com && npm install && npm run build:prod
 
 build_go:
 	go mod download
 	go mod tidy
 	GOOS=$(GOOS) GOARCH=$(GOARCH) $(GOBUILD) -trimpath $(LDFLAGS) -o $(BUILDDIR)/$(APP_NAME) $(MAIN)
+	echo $(shasum -a 256 ${BUILDDIR}/$(APP_NAME)|awk '{print $1}') > $(APP_NAME).sum
 
 # 构建二进制文件和 web dashboard
-build_bin: build_web_dashboard build_go
+build_bin: build_web_dashboard clean build_go
 
 build_linux_amd64:
 	GOOS=linux GOARCH=amd64 $(GOBUILD) -trimpath $(LDFLAGS) -o $(BUILDDIR)/kubackup_server_$(APPVERSION)_linux_amd64 $(MAIN)

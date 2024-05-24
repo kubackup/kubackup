@@ -1,15 +1,15 @@
 [Unit]
 Description=kubackup-server
-Documentation=
+Documentation=https://kubackup.cn
 Wants=network-online.target
 After=network-online.target
 
 [Service]
-ExecStart=/usr/local/bin/kubackup-server -c /data/kubackup
+ExecStart=/usr/local/bin/kubackup_server
 Restart=always
 RestartSec=5
-WorkingDirectory=/usr/local/bin/kubackup-server
-ReadWritePaths=/data/kubackup
+WorkingDirectory=/usr/local/bin/kubackup_server
+ReadWritePaths=~/.kubackup
 
 [Install]
 WantedBy=multi-user.target
