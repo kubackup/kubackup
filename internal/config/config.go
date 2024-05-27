@@ -68,7 +68,7 @@ func ReadConfig(path string) (c *config.Config, err error) {
 		}
 		c.Logger.LogPath = pathu.Join(path, string(filepath.Separator), "log")
 		c.Data.DbDir = pathu.Join(path, string(filepath.Separator), "db")
-		if "" == c.Logger.LogPath {
+		if "" == c.Data.CacheDir {
 			c.Data.CacheDir = pathu.Join(path, string(filepath.Separator), "cache")
 		}
 		fmt.Println(fmt.Sprintf("配置加载完成: %s", path))
