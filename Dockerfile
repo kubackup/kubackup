@@ -19,7 +19,7 @@ COPY . /dowell/
 RUN --mount=type=cache,target=/root/gopath echo -e 'https://mirrors.ustc.edu.cn/alpine/v3.15/main/\nhttps://mirrors.ustc.edu.cn/alpine/v3.15/community/' > /etc/apk/repositories &&\
     apk update &&\
     apk upgrade &&\
-    apk add --no-cache git make libffi-dev openssl-dev libtool tzdata &&\
+    apk add --no-cache git make libffi-dev openssl-dev libtool tzdata curl &&\
     cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &&  \
     sh prepare.sh
 COPY --from=buildvue /dowell /dowell

@@ -6,7 +6,7 @@ if [ -d "pkg/restic_source" ]; then
 fi
 
 mkdir -p pkg/restic_source
-wget -O restic.tar.gz https://github.com/restic/restic/archive/refs/tags/v"${version}".tar.gz
+curl -Lk https://github.com/restic/restic/archive/refs/tags/v"${version}".tar.gz -o restic.tar.gz
 tar -zxvf restic.tar.gz
 cp -rp restic-"${version}"/internal pkg/restic_source/rinternal
 cp -rp restic-"${version}"/LICENSE pkg/restic_source/

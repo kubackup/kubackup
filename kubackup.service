@@ -8,8 +8,6 @@ After=network-online.target
 ExecStart=/usr/local/bin/kubackup_server
 Restart=always
 RestartSec=5
-WorkingDirectory=/usr/local/bin/kubackup_server
-ReadWritePaths=~/.kubackup
 
 [Install]
 WantedBy=multi-user.target
