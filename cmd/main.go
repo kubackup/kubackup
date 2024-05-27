@@ -21,7 +21,7 @@ var (
 var embedWebDashboard embed.FS
 
 var rootCmd = &cobra.Command{
-	Use:   "kubackup-server",
+	Use:   "kubackup_server",
 	Short: "酷备份-KuBackup",
 	Long:  `酷备份-KuBackup`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -32,10 +32,10 @@ var rootCmd = &cobra.Command{
 			return
 		}
 	},
-	Version: fmt.Sprintf("github.com/kubackup/kubackup-server %s compiled with %v on %v/%v at %s",
-		v.Verison+"-"+v.GitTag, runtime.Version(), runtime.GOOS, runtime.GOARCH, v.BuildTime),
+	Version: fmt.Sprintf("%s compiled with %v on %v/%v at %s",
+		v.Verison, runtime.Version(), runtime.GOOS, runtime.GOARCH, v.BuildTime),
 }
-var v = backup.GetVersion()
+var v = kubackup.GetVersion()
 
 func init() {
 	rootCmd.Flags().StringVar(&serverBindHost, "server-bind-host", "", "bind address")

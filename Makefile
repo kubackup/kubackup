@@ -7,7 +7,7 @@ VERSION=$(shell cat VERSION)
 
 GoVersion=$(shell go version)
 BASEPATH=$(shell pwd)
-BUILD_TIME=$(shell date +"%Y%m%d%H%M%S")
+BUILD_TIME=$(shell date +"%Y%m%d%H%M")
 BUILDDIR=$(BASEPATH)/dist
 DASHBOARDDIR=$(BASEPATH)/web/dashboard
 MAIN=$(BASEPATH)/cmd/main.go
@@ -15,7 +15,7 @@ APPVERSION=$(VERSION)
 
 APP_NAME=kubackup_server_$(APPVERSION)_$(GOOS)_$(GOARCH)
 
-LDFLAGS=-ldflags "-s -w -X backup.GitTag=${GITVERSION} -X backup.BuildTime=${BUILD_TIME} -X backup.V=${VERSION}"
+LDFLAGS=-ldflags "-s -w -X github.com/kubackup/kubackup.BuildTime=${BUILD_TIME} -X github.com/kubackup/kubackup.V=${VERSION}"
 
 
 all: build_web_dashboard all_bin
@@ -34,7 +34,6 @@ build_go:
 	go mod download
 	go mod tidy
 	GOOS=$(GOOS) GOARCH=$(GOARCH) $(GOBUILD) -trimpath $(LDFLAGS) -o $(BUILDDIR)/$(APP_NAME) $(MAIN)
-	echo $(shasum -a 256 ${BUILDDIR}/$(APP_NAME)|awk '{print $1}') > $(APP_NAME).sum
 
 # 构建二进制文件和 web dashboard
 build_bin: build_web_dashboard clean build_go
@@ -53,5 +52,5 @@ build_osx_arm64:
 
 # 构建 Docker 镜像
 build_image:
-	docker buildx build -t kubackup/kubackup:${VERSION} --platform=linux/arm64,linux/amd64 . --push
+	docker buildx build -t kubackup/kubackup:${VERSION} -t kubackup/kubackup:latest --platform=linux/arm64,linux/amd64 . --push
 

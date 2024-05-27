@@ -40,7 +40,7 @@ func (w WhiteList) In(name string) bool {
 
 func versionHandler() iris.Handler {
 	return func(ctx *context.Context) {
-		v := backup.GetVersion()
+		v := kubackup.GetVersion()
 		ctx.Values().Set("data", v)
 	}
 }

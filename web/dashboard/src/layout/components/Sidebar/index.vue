@@ -66,7 +66,7 @@ export default {
     getVersion() {
       fetchVersion().then(res => {
         const v = res.data
-        this.version = v.verison + '-' + v.gitTag
+        this.version = v.verison
       })
     }
   }

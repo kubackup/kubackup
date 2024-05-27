@@ -28,10 +28,10 @@ RUN --mount=type=cache,target=/root/gopath make build_go
 FROM alpine:latest
 LABEL MAINTAINER="kubackup <bjpoya@163.com>"
 ENV LANG C.UTF-8
-COPY --from=buildbin /dowell/dist/kubackup-server-* /apps/kubackup-server
+COPY --from=buildbin /dowell/dist/kubackup_server_* /apps/kubackup_server
 COPY --from=buildbin /etc/localtime /etc/localtime
 
 EXPOSE 8012
 
-ENTRYPOINT ["/apps/kubackup-server"]
+ENTRYPOINT ["/apps/kubackup_server"]
 

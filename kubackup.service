@@ -1,5 +1,5 @@
 [Unit]
-Description=kubackup-server
+Description=kubackup_server
 Documentation=https://kubackup.cn
 Wants=network-online.target
 After=network-online.target
