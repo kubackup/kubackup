@@ -15,6 +15,9 @@ import (
 )
 
 func Upgrade(version string) error {
+	if server.IsDocker() {
+		return fmt.Errorf("当前运行在docker环境，请自行更新容器镜像版本")
+	}
 	if version == "" {
 		return fmt.Errorf("版本号不能为空")
 	}
