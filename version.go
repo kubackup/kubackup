@@ -1,8 +1,8 @@
 package kubackup
 
-type Verison struct {
+type Version struct {
 	BuildTime string `json:"buildTime"`
-	Verison   string `json:"verison"`
+	Version   string `json:"version"`
 }
 
 var (
@@ -10,9 +10,9 @@ var (
 	V         string
 )
 
-func GetVersion() *Verison {
-	return &Verison{
-		Verison:   V,
+func GetVersion() *Version {
+	return &Version{
+		Version:   V,
 		BuildTime: BuildTime,
 	}
 }

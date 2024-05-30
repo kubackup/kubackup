@@ -11,6 +11,7 @@ import (
 	"github.com/kataras/iris/v12/middleware/pprof"
 	"github.com/kataras/iris/v12/view"
 	cf "github.com/kubackup/kubackup/internal/config"
+	"github.com/kubackup/kubackup/internal/consts/system_status"
 	"github.com/kubackup/kubackup/internal/entity/v1/config"
 	fileutil "github.com/kubackup/kubackup/pkg/file"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/fs"
@@ -32,7 +33,7 @@ type BackupServer struct {
 	config       *config.Config
 	db           *storm.DB
 	cache        cache.ICache
-	systemStatus bool
+	systemStatus string
 }
 
 var EmbedWebDashboard embed.FS
@@ -46,7 +47,7 @@ func Listen(route func(party iris.Party), host string, port int, path string) er
 }
 
 func NewBackupServer(host string, port int, path string) *BackupServer {
-	server := &BackupServer{}
+	server := &BackupServer{systemStatus: system_status.Normal}
 	server.app = iris.New()
 	c, err := cf.ReadConfig(path)
 	if err != nil {
@@ -57,7 +58,7 @@ func NewBackupServer(host string, port int, path string) *BackupServer {
 	bs.UpdatePort(port)
 	return server.bootstrap()
 }
-func UpdateSystemStatus(ok bool) {
+func UpdateSystemStatus(ok string) {
 	bs.systemStatus = ok
 }
 func (e *BackupServer) bootstrap() *BackupServer {
@@ -175,10 +176,10 @@ const ContentTypeDownload = "application/download"
 // 全局结果处理
 func (e *BackupServer) setResultHandler() {
 	e.rootRoute.Use(func(ctx *context.Context) {
-		if !e.systemStatus {
+		if e.systemStatus != system_status.Normal {
 			resp := iris.Map{
 				"success":      true,
-				"systemStatus": false,
+				"systemStatus": e.systemStatus,
 				"data":         nil,
 			}
 			_, _ = ctx.JSON(resp)
@@ -207,7 +208,7 @@ func (e *BackupServer) setResultHandler() {
 		if ctx.GetStatusCode() >= iris.StatusOK && ctx.GetStatusCode() < iris.StatusBadRequest {
 			resp := iris.Map{
 				"success":      true,
-				"systemStatus": true,
+				"systemStatus": system_status.Normal,
 				"data":         ctx.Values().Get("data"),
 			}
 			_, _ = ctx.JSON(resp)
@@ -227,7 +228,7 @@ func (e *BackupServer) setUpErrHandler() {
 		message := ctx.Values().Get("message")
 		er := iris.Map{
 			"success":      false,
-			"systemStatus": true,
+			"systemStatus": system_status.Normal,
 			"code":         ctx.GetStatusCode(),
 			"message":      message,
 		}

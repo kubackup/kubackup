@@ -2,9 +2,7 @@ package config
 
 import (
 	"fmt"
-	"github.com/kubackup/kubackup/internal/consts"
 	"github.com/kubackup/kubackup/internal/entity/v1/config"
-	"github.com/kubackup/kubackup/internal/model"
 	"github.com/kubackup/kubackup/pkg/file"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v3"
@@ -52,10 +50,7 @@ func ReadConfig(path string) (c *config.Config, err error) {
 		v.SetConfigType("yaml")
 		realDir := fileutil.ReplaceHomeDir(pathu.Join(path, string(filepath.Separator), "conf"))
 		if exists := fileutil.Exist(realDir); !exists {
-			return nil, &model.CustomError{
-				Code:    consts.SYSTEM_CODE,
-				Message: fmt.Sprintf("读取配置文件%s失败：conf目录不存在，配置时不用写conf", path),
-			}
+			return nil, fmt.Errorf("读取配置文件%s失败：conf目录不存在，配置时不用写conf", path)
 		}
 		v.AddConfigPath(realDir)
 		if err = v.ReadInConfig(); err != nil {

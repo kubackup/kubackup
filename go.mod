@@ -50,10 +50,12 @@ require (
 	github.com/huaweicloud/huaweicloud-sdk-go-obs v3.21.12+incompatible
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mozillazg/go-httpheader v0.4.0 // indirect
+	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/stretchr/testify v1.7.0
 	github.com/tencentyun/cos-go-sdk-v5 v0.7.47
 	github.com/tjfoc/gmsm v1.4.1
 	github.com/wxnacy/wgo v1.0.4
+	github.com/xlzd/gotp v0.1.0
 	github.com/yumaojun03/dmidecode v0.1.4
 	google.golang.org/grpc v1.43.0 // indirect
 )

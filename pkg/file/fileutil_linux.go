@@ -4,8 +4,10 @@
 package fileutil
 
 import (
+	"bufio"
 	"github.com/kubackup/kubackup/internal/consts"
 	"github.com/kubackup/kubackup/internal/model"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -14,6 +16,32 @@ import (
 	"syscall"
 	"time"
 )
+
+// CopyFile 复制文件
+func CopyFile(src, dst string) error {
+	source, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer source.Close()
+
+	destination, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer destination.Close()
+
+	buffer := bufio.NewWriterSize(destination, 65536) // 缓冲区大小可自定义，例如64KB或1MB
+
+	_, err = io.Copy(buffer, source)
+	if err != nil {
+		return err
+	}
+	if err = buffer.Flush(); err != nil {
+		return err
+	}
+	return nil
+}
 
 func ReplaceHomeDir(path string) string {
 	if strings.HasPrefix(FixPath(path), "~") {

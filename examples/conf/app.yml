@@ -1,18 +1,25 @@
 server:
-  name: "kubackup"
-  debug: false
+  name: kubackup
   bind:
-    host: 0.0.0.0
+    # 监听地址，默认0.0.0.0
+    host: ""
+    # 监听端口
     port: 8012
-prometheus:
-  enable: true
-jwt:
-  key: "yourkey"
-  maxAge: 86400
+  debug: false
 data:
+  # 是否启用缓存
   noCache: false
-  cacheDir: /Users/tanyi/Documents/gocode/cache
+  # 本地缓存目录
+  cacheDir: /root/.kubackup/cache
+  # 数据库目录
+  dbDir: /root/.kubackup/db
 logger:
   level: info
-
-
+  logPath: /root/.kubackup/log
+jwt:
+  # jwt密钥，请自行修改
+  key: dowell
+  # 密钥有效期，单位秒
+  maxAge: 1800
+prometheus:
+  enable: false

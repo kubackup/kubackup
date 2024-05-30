@@ -17,6 +17,8 @@ type Service interface {
 	Delete(id int, options common.DBOptions) error
 	DeleteStruct(user *sysuser.SysUser, options common.DBOptions) error
 	Update(user *sysuser.SysUser, options common.DBOptions) error
+	ClearOtp(username string, options common.DBOptions) error
+	ClearPwd(username string, options common.DBOptions) error
 	InitAdmin() error
 }
 
@@ -28,6 +30,40 @@ func GetService() Service {
 
 type Sysuser struct {
 	common.DefaultDBService
+}
+
+func (s Sysuser) ClearPwd(username string, options common.DBOptions) error {
+	user, err := s.GetByUserName(username, options)
+	if err != nil {
+		return err
+	}
+	pwd := utils.RandomString(8)
+	fmt.Println("新密码:", pwd)
+	encodePWD, err := utils.EncodePWD(pwd)
+	if err != nil {
+		return err
+	}
+	user.Password = encodePWD
+	err = s.Update(user, options)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// ClearOtp 清理otp信息
+func (s Sysuser) ClearOtp(username string, options common.DBOptions) error {
+	user, err := s.GetByUserName(username, options)
+	if err != nil {
+		return err
+	}
+	user.OtpSecret = "1" //默认值
+	user.OtpInterval = 0
+	err = s.Update(user, options)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s Sysuser) DeleteStruct(user *sysuser.SysUser, options common.DBOptions) error {

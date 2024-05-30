@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"github.com/kataras/iris/v12"
 	"github.com/kataras/iris/v12/context"
-	"github.com/kubackup/kubackup"
 	"github.com/kubackup/kubackup/internal/api/v1/dashboard"
 	"github.com/kubackup/kubackup/internal/api/v1/operation"
 	"github.com/kubackup/kubackup/internal/api/v1/plan"
@@ -15,6 +14,7 @@ import (
 	"github.com/kubackup/kubackup/internal/api/v1/task"
 	"github.com/kubackup/kubackup/internal/api/v1/user"
 	"github.com/kubackup/kubackup/internal/api/v1/ws"
+	"github.com/kubackup/kubackup/internal/consts/system_status"
 	"github.com/kubackup/kubackup/internal/entity/v1/oplog"
 	"github.com/kubackup/kubackup/internal/model"
 	"github.com/kubackup/kubackup/internal/service/v1/common"
@@ -25,7 +25,7 @@ import (
 )
 
 // 认证接口白名单
-var apiWhiteList = WhiteList{"post:/api/v1/login", "get:/api/version"}
+var apiWhiteList = WhiteList{"post:/api/v1/login", "get:/api/v1/system/version", "get:/api/v1/system/version/latest"}
 
 type WhiteList []string
 
@@ -36,13 +36,6 @@ func (w WhiteList) In(name string) bool {
 		}
 	}
 	return false
-}
-
-func versionHandler() iris.Handler {
-	return func(ctx *context.Context) {
-		v := kubackup.GetVersion()
-		ctx.Values().Set("data", v)
-	}
 }
 
 // jwtHandler jwt认证中间件
@@ -80,7 +73,7 @@ func logHandler() iris.Handler {
 		if curuser == nil {
 			resp := iris.Map{
 				"success":      true,
-				"systemStatus": true,
+				"systemStatus": system_status.Normal,
 				"data":         ctx.Values().Get("data"),
 			}
 			ctx.StatusCode(iris.StatusUnauthorized)
@@ -114,7 +107,6 @@ func logHandler() iris.Handler {
 func AddV1Route(app iris.Party) {
 	// v1版本接口集合
 	v1Party := app.Party("/v1")
-	v1Party.Get("/version", versionHandler())
 	v1Party.Use(jwtHandler())
 	v1Party.Use(logHandler())
 	user.Install(v1Party)

@@ -28,7 +28,7 @@ clean:
 
 # 构建 web dashboard
 build_web_dashboard:
-	cd $(DASHBOARDDIR) && npm config set registry registry.npmmirror.com && npm install && npm run build:prod
+	cd $(DASHBOARDDIR) && npm config set registry https://registry.npmmirror.com && npm install && npm run build:prod
 
 build_go:
 	go mod download

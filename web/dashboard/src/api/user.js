@@ -64,3 +64,25 @@ export function fetchRePwd(data) {
     data
   })
 }
+
+export function fetchOtp(){
+  return request({
+    url: '/otp',
+    method: 'get',
+  })
+}
+
+export function fetchBindOtp(data){
+  return request({
+    url: '/otp',
+    method: 'post',
+    data
+  })
+}
+
+export function fetchDeleteOtp(){
+  return request({
+    url: '/otp',
+    method: 'put',
+  })
+}

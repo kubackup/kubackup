@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/kubackup/kubackup/internal/backend/hwobs"
 	"github.com/kubackup/kubackup/internal/backend/txcos"
+	"github.com/kubackup/kubackup/internal/consts/system_status"
 	repoModel "github.com/kubackup/kubackup/internal/entity/v1/repository"
 	"github.com/kubackup/kubackup/internal/server"
 	"github.com/kubackup/kubackup/internal/service/v1/common"
@@ -186,8 +187,8 @@ func cleanCtx() {
 func InitRepository() {
 	repositoryLock.Lock()
 	defer repositoryLock.Unlock()
-	server.UpdateSystemStatus(false)
-	defer server.UpdateSystemStatus(true)
+	server.UpdateSystemStatus(system_status.Loading)
+	defer server.UpdateSystemStatus(system_status.Normal)
 	reps, err := repositoryService.List(0, "", common.DBOptions{})
 	if err != nil && err.Error() != "not found" {
 		fmt.Printf("仓库查询失败，%v\n", err)

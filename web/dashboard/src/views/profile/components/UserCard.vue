@@ -1,5 +1,5 @@
 <template>
-  <el-card style="height: 300px;">
+  <el-card>
     <div slot="header" class="clearfix">
       <span>个人中心</span>
     </div>
@@ -16,6 +16,21 @@
       </div>
       <div class="box-center">
         <el-button type="primary" @click="repwdHandler">修改密码</el-button>
+      </div>
+      <div class="box-center">
+        <el-switch
+          v-model="this.user.mfa"
+          active-text="二次认证" @change="mfaChangeHandler">
+        </el-switch>
+      </div>
+      <div class="box-center" v-if="mfa">
+        <p>请使用<el-link type="success" target="_blank" href="https://kubackup.cn/user_manual/user/#_2">otp应用</el-link>扫码下面二维码获取6为验证码
+        </p>
+        <img @click="getQrcode" v-if="mfaQrcode" :src="mfaQrcode" class="qrcode" alt="qrcode">
+        <p class="secret">密钥：{{ otpInfo.secret }}</p>
+        <el-input placeholder="请输入验证码" v-model="otpInfo.code" class="input-with-select mfacode">
+          <el-button slot="append" @click="bindOtp">绑定</el-button>
+        </el-input>
       </div>
     </div>
     <el-dialog
@@ -50,7 +65,8 @@
 
 <script>
 import PanThumb from '@/components/PanThumb'
-import {fetchRePwd} from "@/api/user";
+import {fetchBindOtp, fetchDel, fetchDeleteOtp, fetchOtp, fetchRePwd} from "@/api/user";
+import {setUserInfo} from "@/utils/auth";
 
 export default {
   components: {PanThumb},
@@ -59,10 +75,13 @@ export default {
       type: Object,
       default: () => {
         return {
-          nickName: '',
+          id: '',
           userName: '',
+          nickName: '',
           email: '',
-          phone: ''
+          phone: '',
+          lastLogin: '',
+          mfa: false
         }
       }
     }
@@ -79,6 +98,13 @@ export default {
     }
     return {
       dialogFormVisible: false,
+      mfa: false,
+      mfaQrcode: '',
+      otpInfo: {
+        secret: '',
+        code: '',
+        interval: 0
+      },
       temp: {
         oldPassword: "",
         password: "",
@@ -116,12 +142,64 @@ export default {
           })
         }
       })
+    },
+    mfaChangeHandler(value) {
+      if (value) {
+        this.mfa = true
+        this.getQrcode()
+      } else {
+        this.$confirm('确认关闭二次认证吗？', '关闭认证', {
+          type: 'warning'
+        }).then(() => {
+          this.otpInfo = {
+            secret: '',
+            code: '',
+            interval: 0
+          }
+          fetchDeleteOtp().then(res => {
+            this.user.mfa = false
+            setUserInfo(this.user)
+            this.mfa = false
+            this.$notify.success({
+              title: '提示',
+              message: res.data
+            })
+          })
+        })
+      }
+    },
+    getQrcode() {
+      fetchOtp().then(res => {
+        const data = res.data
+        this.otpInfo.secret = data.secret
+        this.otpInfo.interval = data.interval
+        this.mfaQrcode = data.qrImg
+      })
+    },
+    bindOtp() {
+      if (this.otpInfo.code === '') {
+        this.$notify.error({
+          title: '错误',
+          message: '验证码不能为空'
+        })
+      }
+      fetchBindOtp(this.otpInfo).then(res => {
+        this.$notify.success({
+          title: '提示',
+          message: res.data
+        })
+        this.user.mfa = true
+        setUserInfo(this.user)
+        this.mfa = false
+      })
     }
   }
 }
 </script>
 
 <style lang="scss" scoped>
+@import "../dashboard/src/styles/variables";
+
 .box-center {
   margin: 0 auto;
   display: table;
@@ -138,6 +216,23 @@ export default {
 
   .box-center {
     padding-top: 10px;
+  }
+
+  .qrcode {
+    display: block;
+    margin: auto;
+    width: 200px;
+    height: 200px;
+  }
+
+  .secret {
+    display: block;
+    margin: auto;
+    font-size: 15px;
+  }
+
+  .mfacode {
+    margin-top: 10px;
   }
 
   .user-role {

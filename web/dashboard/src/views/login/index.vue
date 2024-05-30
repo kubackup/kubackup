@@ -50,13 +50,16 @@
           </span>
         </el-form-item>
       </el-tooltip>
-
+      <p class="forget">
+        <el-link type="primary" target="_blank" href="https://kubackup.cn/user_manual/user/#_4">忘记密码</el-link>
+      </p>
       <el-button :loading="loading" type="primary" style="width:100%;margin-bottom:30px;"
                  @click.native.prevent="handleLogin">登录
       </el-button>
     </el-form>
     <div class="el-footer footer">
-      <p>技术支持：<a class="link" href="https://kubackup.cn" target="_blank">酷备份 Kubackup</a></p>
+      技术支持：
+      <el-link href="https://kubackup.cn" type="primary" :underline="false" target="_blank">酷备份 Kubackup</el-link>
       <p>{{ version }}</p>
     </div>
   </div>
@@ -64,7 +67,7 @@
 
 <script>
 import {title, title_en} from "@/settings";
-import {fetchVersion} from "@/api/dashboard";
+import {fetchVersion} from "@/api/system";
 
 export default {
   name: 'Login',
@@ -89,7 +92,8 @@ export default {
       version: '',
       loginForm: {
         username: '',
-        password: ''
+        password: '',
+        code: ''
       },
       loginRules: {
         username: [{required: true, trigger: 'blur', validator: validateUsername}],
@@ -132,7 +136,7 @@ export default {
     getVersion() {
       fetchVersion().then(res => {
         const v = res.data;
-        this.version = v.verison
+        this.version = v.version
       })
     },
     showPwd() {
@@ -151,11 +155,14 @@ export default {
           this.loading = true
           this.$store.dispatch('user/login', this.loginForm)
             .then(() => {
+              this.loading = false
               this.$router.push({path: this.redirect || '/', query: this.otherQuery})
-              this.loading = false
             })
-            .catch(() => {
+            .catch((err) => {
               this.loading = false
+              if (err === 'mfa') {
+                this.handleCode()
+              }
             })
         } else {
           return false
@@ -169,6 +176,17 @@ export default {
         }
         return acc
       }, {})
+    },
+    // 验证码登录
+    handleCode() {
+      this.$prompt('请输入二次验证码', '验证码', {
+        cancelButtonText: '取消',
+        inputPattern: /^\d{6,}$/,
+        inputErrorMessage: '验证码格式错误'
+      }).then(({value}) => {
+        this.loginForm.code = value
+        this.handleLogin()
+      })
     }
   }
 }
@@ -204,9 +222,6 @@ $light_gray: $menuHover;
     transform: translateX(-50%);
     text-align: center;
 
-    .link {
-      color: $menuActiveText;
-    }
   }
 
   .logo-container {
@@ -257,6 +272,10 @@ $light_gray: $menuHover;
     border-radius: 20px;
     margin: 110px auto;
     overflow: hidden;
+
+    .forget {
+      text-align: right;
+    }
   }
 
   .svg-container {

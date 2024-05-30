@@ -37,6 +37,7 @@ export default {
           email: '',
           phone: '',
           lastLogin: '',
+          mfa: false
         }
       }
     }

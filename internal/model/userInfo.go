@@ -5,6 +5,7 @@ import "time"
 type LoginData struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
+	Code     string `json:"code"` // otp 验证码
 }
 
 type RePwdData struct {
@@ -19,6 +20,7 @@ type Userinfo struct {
 	Email     string     `json:"email"`
 	Phone     string     `json:"phone"`
 	LastLogin string     `json:"lastLogin"`
+	Mfa       bool       `json:"mfa"`
 	Token     *TokenInfo `json:"token"`
 }
 

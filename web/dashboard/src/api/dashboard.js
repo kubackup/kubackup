@@ -33,13 +33,3 @@ export function fetchLogs(query) {
   })
 }
 
-/**
- * 获取当前版本
- * @returns {AxiosPromise}
- */
-export function fetchVersion() {
-  return request({
-    url: '/version',
-    method: 'get'
-  })
-}

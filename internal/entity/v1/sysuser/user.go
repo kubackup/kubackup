@@ -12,5 +12,7 @@ type SysUser struct {
 	Password         string    `json:"password"`                      //密码
 	Email            string    `json:"email"`                         //邮箱
 	Phone            string    `json:"phone"`                         //手机号码
+	OtpSecret        string    `json:"OtpSecret"`                     //otp密钥
+	OtpInterval      int       `json:"otpInterval"`                   //otp 步数
 	LastLogin        time.Time `json:"lastLogin"`                     //最后登录时间
 }

@@ -148,3 +148,24 @@ func TestReplaceHomeDir(t *testing.T) {
 		})
 	}
 }
+
+func TestCopyFile(t *testing.T) {
+	type args struct {
+		src string
+		dst string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{name: "test1", args: args{src: "/Users/tanyi/Documents/gocode/kubackup_open/examples/conf/app.yml", dst: "/Users/tanyi/Documents/gocode/kubackup_open/examples/conf/app1.yml"}, wantErr: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := CopyFile(tt.args.src, tt.args.dst); (err != nil) != tt.wantErr {
+				t.Errorf("CopyFile() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}

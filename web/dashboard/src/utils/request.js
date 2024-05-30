@@ -1,9 +1,9 @@
 import axios from 'axios'
-import { Notification, Loading } from 'element-ui'
+import {Notification, Loading} from 'element-ui'
 import store from '@/store'
-import { getToken } from '@/utils/auth'
+import {getToken} from '@/utils/auth'
 import router from '@/router'
-import { fetchVersion } from '@/api/dashboard'
+import {fetchVersion} from '@/api/system'
 
 // create an axios instance
 const service = axios.create({
@@ -40,7 +40,7 @@ const isTokenExpired = () => {
 
 let isRefreshing = false
 
-const refreshToken = async() => {
+const refreshToken = async () => {
   if (isTokenExpired() && !isRefreshing) {
     isRefreshing = true
     await store.dispatch('user/refreshToken').finally(() => {
@@ -49,20 +49,33 @@ const refreshToken = async() => {
   }
 }
 
-let RepoLoading = false
+let RepoLoading = 'normal'
 
 let timei = null
 
 let loading = null
 
+const getLoadingText = (load) => {
+  switch (load) {
+    case 'normal':
+      return '正常'
+    case 'loading':
+      return '仓库正在加载中，请稍后...'
+    case 'upgrading':
+      return '升级中...升级成功后，macOs 需自行重启，linux用户等待自动重启完成即可'
+    default:
+      return '正常'
+  }
+}
+
 const checkRepoLoading = () => {
-  if (RepoLoading) {
+  if (RepoLoading !== 'normal') {
     if (loading != null) {
       return
     }
     loading = Loading.service({
       lock: true,
-      text: '仓库正在加载中，请稍后...',
+      text: getLoadingText(RepoLoading),
       spinner: 'el-icon-loading',
       background: 'rgba(0, 0, 0, 0.7)'
     })
@@ -74,7 +87,9 @@ const checkRepoLoading = () => {
       loading.close()
       location.reload()
     }
-    if (timei != null) { clearInterval(timei) }
+    if (timei != null) {
+      clearInterval(timei)
+    }
   }
 }
 
@@ -107,7 +122,7 @@ service.interceptors.response.use(
         return Promise.reject(new Error(res.message || 'Error'))
       }
     } else {
-      RepoLoading = !res.systemStatus
+      RepoLoading = res.systemStatus
       checkRepoLoading()
       return res
     }
