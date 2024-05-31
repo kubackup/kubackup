@@ -1,0 +1,13 @@
+version: '3'
+services:
+  kubackup:
+    image: kubackup/kubackup
+    container_name: kubackup
+    restart: always
+    volumes:
+      - /data:/data
+      - /data/kubackup:/root/.kubackup
+    ports:
+      - "8012:8012"
+    user: "root"
+    hostname: ${HOSTNAME}
