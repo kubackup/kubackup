@@ -26,9 +26,9 @@
 
 ## 安装文档
 
-[https://kubackup.cn](https://kubackup.cn/installation/online/)
+[https://kubackup.cn/installation/online/](https://kubackup.cn/installation/online/)
 
-## 页面
+## 页面预览
 
 <p align="center">
     <img style="box-shadow: 0 0 10px rgba(0,0,0,0.5);border-radius: 5px;" src="https://cos.kubackup.cn/img/index.png" alt="index"/>
