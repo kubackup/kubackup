@@ -31,7 +31,7 @@ reliability, while introducing the following features:
   checks guarantee consistency.
 - **Compatibility**: Supports importing existing Restic repositories.
 - **Flexibility**: Extends support to Tencent COS, Alibaba OOS, and Huawei OBS as backend storage options, catering to
-  domestic users.
+  Chinese users.
 
 ## Installation Documentation
 
