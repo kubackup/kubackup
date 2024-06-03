@@ -1,5 +1,5 @@
 <p align="center"><a target="_blank" href="https://kubackup.cn"><img src="https://cos.kubackup.cn/img/kubackup-bar.png" alt="Kubackup" width="300" /></a></p>
-<p align="center"><b>简单、开源、现代化的restic web UI</b></p>
+<p align="center"><b>简单、开源、现代化的Restic Web UI</b></p>
 <p align="center">
   <a target="_blank" href="https://github.com/kubackup/kubackup"><img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/kubackup/kubackup?style=flat&logo=github"></a>
   <a target="_blank" style="padding-top: 5px" href="https://gitee.com/kubackup/kubackup"><img alt="Gitee Repo stars" src="https://gitee.com/kubackup/kubackup/badge/star.svg?theme=dark"></a>
