@@ -24,7 +24,9 @@
         </el-switch>
       </div>
       <div class="box-center" v-if="mfa">
-        <p>请使用<el-link type="success" target="_blank" href="https://kubackup.cn/user_manual/user/#_2">otp应用</el-link>扫码下面二维码获取6为验证码
+        <p>请使用
+          <el-link type="success" target="_blank" href="https://kubackup.cn/user_manual/user/#_2">otp应用</el-link>
+          扫码下面二维码获取6为验证码
         </p>
         <img @click="getQrcode" v-if="mfaQrcode" :src="mfaQrcode" class="qrcode" alt="qrcode">
         <p class="secret">密钥：{{ otpInfo.secret }}</p>
@@ -132,14 +134,8 @@ export default {
     repwd() {
       this.$refs['dataForm'].validate((valid) => {
         if (valid) {
-          fetchRePwd(this.temp).then(res => {
-            this.$notify.success({
-              title: '提示',
-              message: res.data
-            })
-          }).finally(() => {
-            this.dialogFormVisible = false
-          })
+          this.$notify.error("演示环境，不能执行操作")
+          this.dialogFormVisible = false
         }
       })
     },
@@ -183,15 +179,7 @@ export default {
           message: '验证码不能为空'
         })
       }
-      fetchBindOtp(this.otpInfo).then(res => {
-        this.$notify.success({
-          title: '提示',
-          message: res.data
-        })
-        this.user.mfa = true
-        setUserInfo(this.user)
-        this.mfa = false
-      })
+      this.$notify.error("演示环境，不能执行操作")
     }
   }
 }

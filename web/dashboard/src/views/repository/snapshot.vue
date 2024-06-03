@@ -304,9 +304,7 @@ export default {
       this.temp = this.policy
     },
     handleDel() {
-      fetchDel(this.policy.id).then(() => {
-        this.getPolicy()
-      })
+      this.$notify.error("演示环境，不能执行操作")
     },
     updateLog(data, isPush) {
       if (isPush) {
@@ -369,17 +367,8 @@ export default {
       })
     },
     updatePolicyData() {
-      let data = {
-        id: this.policy.id,
-        repositoryId: Number(this.listQuery.id),
-        path: this.listQuery.path,
-        value: Number(this.temp.n),
-        type: this.temp.type
-      }
-      fetchUpdate(data).then(() => {
-        this.dialogFormVisible = false
-        this.getPolicy()
-      })
+      this.$notify.error("演示环境，不能执行操作")
+      this.dialogFormVisible = false
     }
   }
 }

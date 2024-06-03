@@ -308,6 +308,10 @@ export default {
       })
     },
     updateData() {
+      if (this.temp.id === 1 || this.temp.id === 2) {
+        this.$notify.error("演示环境，不能修改默认存储库")
+        return
+      }
       this.$refs['dataForm'].validate((valid) => {
         if (valid) {
           this.buttonLoading = true
@@ -323,6 +327,10 @@ export default {
       })
     },
     handleDel(id) {
+      if (id === 1 || id === 2) {
+        this.$notify.error("演示环境，不能删除默认存储库")
+        return
+      }
       this.$confirm('确认删除该存储库吗？', '删除', {
         type: 'warning'
       }).then(() => {

@@ -100,7 +100,6 @@ export default {
       dialogStatus: '',
       dialogFormVisible: false,
       buttonLoading: false,
-      isAdmin: false,
       temp: {
         userName: "",
         nickName: "",
@@ -118,7 +117,6 @@ export default {
     }
   },
   created() {
-    this.isAdmin = this.getuser() === 'admin'
     this.getList()
   },
   methods: {
@@ -135,10 +133,6 @@ export default {
     dateFormat(row, column, cellValue, index) {
       return dateFormat(cellValue, 'yyyy-MM-dd hh:mm')
     },
-    getuser() {
-      // todo 获取当前登录用户
-      return 'admin'
-    },
     handleAdd() {
       this.resetTemp()
       this.dialogStatus = 'create'
@@ -150,15 +144,8 @@ export default {
     createData() {
       this.$refs['dataForm'].validate((valid) => {
         if (valid) {
-          this.buttonLoading = true
-          fetchCreate(this.temp).then(() => {
-            this.$notify.success('创建成功！')
-            this.buttonLoading = false
-            this.dialogFormVisible = false
-            this.getList()
-          }).catch(() => {
-            this.buttonLoading = false
-          })
+          this.$notify.error("演示环境，不能执行操作")
+          this.dialogFormVisible = false
         }
       })
     },
@@ -173,16 +160,8 @@ export default {
     updateData() {
       this.$refs['dataForm'].validate((valid) => {
         if (valid) {
-          this.buttonLoading = true
-          fetchUpdate(this.temp).then(() => {
-            this.$notify.success('修改成功！')
-            this.buttonLoading = false
-            this.dialogFormVisible = false
-            this.getList()
-          }).catch(() => {
-            this.buttonLoading = false
-            this.dialogFormVisible = false
-          })
+          this.$notify.error("演示环境，不能执行操作")
+          this.dialogFormVisible = false
         }
       })
     },
@@ -190,13 +169,7 @@ export default {
       this.$confirm('确认删除该用户吗？', '删除', {
         type: 'warning'
       }).then(() => {
-        this.listLoading = true
-        fetchDel(id).then(() => {
-          this.$notify.success('删除成功！')
-          this.getList()
-        }).finally(() => {
-          this.listLoading = false
-        })
+        this.$notify.error("演示环境，不能执行操作")
       }).catch(() => {
         this.$notify.info('取消删除')
       })

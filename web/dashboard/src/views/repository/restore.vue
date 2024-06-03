@@ -392,22 +392,9 @@ export default {
       this.$confirm('确认执行恢复<' + snapid + '>操作吗？该操作可能非常耗时！', '恢复数据', {
         type: 'warning'
       }).then(() => {
-        const data = {
-          target: this.restoreOpt.dirCur,
-          verify: this.restoreOpt.verify
-        }
-        fetchRestore(this.listQuery.id, snapid, data).then(res => {
-          this.dialogDirVisible = false
-          this.dialogFormVisible = false
-          this.$notify.success({
-            title: '恢复中...',
-            message: '请前往"<a style="color: #409EFF" href="/Task/index">任务记录</a>"查看',
-            dangerouslyUseHTMLString: true
-          })
-        }).finally(() => {
-          this.dialogDirVisible = false
-          this.dialogFormVisible = false
-        })
+        this.$notify.error("演示环境，不能执行操作")
+        this.dialogDirVisible = false
+        this.dialogFormVisible = false
       }).catch(() => {
         this.$notify.info({title: '取消'})
       })
@@ -416,21 +403,9 @@ export default {
       this.$confirm('确定将"' + data.name + '"将还原到"' + data.path + '"吗？', '还原文件', {
         type: 'warning'
       }).then(() => {
-        const dump = {
-          filename: data.path,
-          type: data.type,
-          mode: data.mode
-        };
-        this.$set(data, 'loading', true)
-        fetchDumpFile(this.listQuery.id, this.curSnap.short_id, dump).then(() => {
-          this.$notify.success({
-            title: '恢复中...',
-            message: '请前往"<a style="color: #409EFF" href="/Task/index">任务记录</a>"查看',
-            dangerouslyUseHTMLString: true
-          })
-        }).finally(() => {
-          this.$set(data, 'loading', false)
-        })
+        this.$notify.error("演示环境，不能执行操作")
+        this.dialogDirVisible = false
+        this.dialogFormVisible = false
       }).catch(() => {
       })
     },

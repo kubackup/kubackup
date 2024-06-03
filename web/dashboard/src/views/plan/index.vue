@@ -224,7 +224,7 @@ export default {
         {name: '停止', status: 2}
       ],
       dialogDirVisible: false,
-      dirCur: "/",
+      dirCur: "/data/",
       dirList: [],
       fullscreenLoading: false,
       repositoryList: [],
@@ -251,7 +251,7 @@ export default {
       dialogdata: '',
       temp: {
         name: '',
-        path: '/',
+        path: '/data/',
         repositoryId: '',
         status: 2,
         immediate: false,
@@ -412,13 +412,7 @@ export default {
       this.$confirm('确认删除该计划吗？', '删除', {
         type: 'warning'
       }).then(() => {
-        this.listLoading = true
-        fetchDel(id).then(() => {
-          this.$notify.success('删除成功！')
-          this.getList()
-        }).finally(() => {
-          this.listLoading = false
-        })
+        this.$notify.error("演示环境，不能执行操作")
       }).catch(() => {
         this.$notify.info('取消删除')
       })
@@ -430,15 +424,7 @@ export default {
             this.$notify.error('请输入定时备份cron表达式')
             return
           }
-          this.buttonLoading = true
-          fetchUpdate(this.temp).then(() => {
-            this.$notify.success('修改成功！')
-            this.buttonLoading = false
-            this.dialogFormVisible = false
-            this.getList()
-          }).catch(() => {
-            this.buttonLoading = false
-          })
+          this.$notify.error("演示环境，不能执行操作")
         }
       })
     },

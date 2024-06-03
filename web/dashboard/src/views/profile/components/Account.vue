@@ -52,14 +52,7 @@ export default {
   },
   methods: {
     submit() {
-      const tmp = this.user
-      fetchUpdate(tmp).then(() => {
-        setUserInfo(this.tmp)
-        this.$notify({
-          message: '更新成功！',
-          type: 'success'
-        })
-      })
+      this.$notify.error("演示环境，不能执行操作")
     }
   }
 }
