@@ -100,7 +100,6 @@ export default {
       dialogStatus: '',
       dialogFormVisible: false,
       buttonLoading: false,
-      isAdmin: false,
       temp: {
         userName: "",
         nickName: "",
@@ -118,7 +117,6 @@ export default {
     }
   },
   created() {
-    this.isAdmin = this.getuser() === 'admin'
     this.getList()
   },
   methods: {
@@ -134,10 +132,6 @@ export default {
     },
     dateFormat(row, column, cellValue, index) {
       return dateFormat(cellValue, 'yyyy-MM-dd hh:mm')
-    },
-    getuser() {
-      // todo 获取当前登录用户
-      return 'admin'
     },
     handleAdd() {
       this.resetTemp()

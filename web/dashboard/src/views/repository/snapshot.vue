@@ -343,6 +343,10 @@ export default {
       }
     },
     getPolicy() {
+      this.policy = {
+        n: 0,
+        type: '',
+      }
       fetchList(this.listQuery).then(response => {
         let policys = response.data
         if (policys.length > 0) {
