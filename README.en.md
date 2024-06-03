@@ -37,6 +37,13 @@ reliability, while introducing the following features:
 
 [https://kubackup.cn/installation/online/](https://kubackup.cn/installation/online/)
 
+
+## Demo
+
+[https://demo.kubackup.cn](https://demo.kubackup.cn)  
+username：```admin  ```  
+password：```8aqxUYPt```
+
 ## Preview
 
 <p align="center">

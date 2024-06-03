@@ -28,6 +28,12 @@
 
 [https://kubackup.cn/installation/online/](https://kubackup.cn/installation/online/)
 
+## 演示地址
+
+[https://demo.kubackup.cn](https://demo.kubackup.cn)  
+账号：```admin  ```  
+密码：```8aqxUYPt```
+
 ## 页面预览
 
 <p align="center">
