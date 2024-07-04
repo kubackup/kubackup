@@ -11,6 +11,7 @@ import (
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/ui"
 	"github.com/kubackup/kubackup/pkg/utils"
+	"math"
 	"os"
 	"sort"
 	"time"
@@ -20,6 +21,8 @@ type TaskProgress struct {
 	*ui.StdioWrapper
 	task           wsTaskInfo.WsTaskInfo
 	MinUpdatePause time.Duration
+	weightCount    float64 //数量进度权重
+	weightSize     float64 //大小进度权重
 	lastUpdate     time.Time
 	errors         []model.ErrorUpdate
 }
@@ -58,13 +61,20 @@ func NewTaskProgress(task wsTaskInfo.WsTaskInfo) *TaskProgress {
 		task:           task,
 		errors:         make([]model.ErrorUpdate, 0),
 		MinUpdatePause: time.Second,
+		weightCount:    1,
+		weightSize:     1,
 	}
 }
+
 func (t *TaskProgress) UpdateTaskInfo(task wsTaskInfo.WsTaskInfo) {
 	t.task = task
 }
 func (t *TaskProgress) SetMinUpdatePause(d time.Duration) {
 	t.MinUpdatePause = d
+}
+func (t *TaskProgress) SetWeight(weightCount, weightSize float64) {
+	t.weightSize = weightSize
+	t.weightCount = weightCount
 }
 
 func (t *TaskProgress) print(status interface{}, forceUpdate bool) {
@@ -89,8 +99,11 @@ func (t *TaskProgress) Update(total, processed backup.Counter, avgSpeed uint64, 
 		AvgSpeed:         utils.FormatBytesSpeed(avgSpeed),
 	}
 
-	if total.Bytes > 0 {
-		status.PercentDone = float64(processed.Bytes) / float64(total.Bytes)
+	if total.Bytes > 0 && total.Files > 0 {
+		denominator := float64(total.Files)*t.weightCount + float64(total.Bytes)*t.weightSize
+		numerator := float64(processed.Files)*t.weightCount + float64(processed.Bytes)*t.weightSize
+		status.PercentDone = numerator / denominator
+		status.PercentDone = math.Floor(status.PercentDone*100) / 100
 	}
 
 	for filename := range currentFiles {

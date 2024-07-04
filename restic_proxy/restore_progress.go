@@ -8,13 +8,16 @@ import (
 	wsTaskInfo "github.com/kubackup/kubackup/internal/store/ws_task_info"
 	ui "github.com/kubackup/kubackup/internal/ui/restore"
 	"github.com/kubackup/kubackup/pkg/utils"
+	"math"
 	"time"
 )
 
 type RestoreProgress struct {
 	ui.ProgressPrinter
 	task           wsTaskInfo.WsTaskInfo
-	MinUpdatePause time.Duration
+	minUpdatePause time.Duration
+	weightCount    float64 //数量进度权重
+	weightSize     float64 //大小进度权重
 	lastUpdate     time.Time
 	errors         []model.ErrorUpdate
 }
@@ -23,17 +26,24 @@ func NewRestoreProgress(t wsTaskInfo.WsTaskInfo) *RestoreProgress {
 	return &RestoreProgress{
 		task:           t,
 		errors:         make([]model.ErrorUpdate, 0),
-		MinUpdatePause: time.Second,
+		minUpdatePause: time.Second,
+		weightCount:    1,
+		weightSize:     1,
 	}
 }
 
 func (r *RestoreProgress) SetMinUpdatePause(d time.Duration) {
-	r.MinUpdatePause = d
+	r.minUpdatePause = d
+}
+
+func (r *RestoreProgress) SetWeight(weightCount, weightSize float64) {
+	r.weightSize = weightSize
+	r.weightCount = weightCount
 }
 
 func (r *RestoreProgress) print(status interface{}, forceUpdate bool) {
 	//控制发送频率
-	if !forceUpdate && (time.Since(r.lastUpdate) < r.MinUpdatePause || r.MinUpdatePause == 0) {
+	if !forceUpdate && (time.Since(r.lastUpdate) < r.minUpdatePause || r.minUpdatePause == 0) {
 		return
 	}
 	r.lastUpdate = time.Now()
@@ -58,8 +68,11 @@ func (r *RestoreProgress) Update(total, processed ui.Counter, avgSpeed uint64, e
 		AvgSpeed:         utils.FormatBytesSpeed(avgSpeed),
 	}
 
-	if total.Bytes > 0 {
-		status.PercentDone = float64(processed.Bytes) / float64(total.Bytes)
+	if total.Bytes > 0 && total.Files > 0 {
+		denominator := float64(total.Files)*r.weightCount + float64(total.Bytes)*r.weightSize
+		numerator := float64(processed.Files)*r.weightCount + float64(processed.Bytes)*r.weightSize
+		status.PercentDone = numerator / denominator
+		status.PercentDone = math.Floor(status.PercentDone*100) / 100
 	}
 	r.task.(*task.TaskInfo).Progress = &status
 	task.TaskInfos.Set(r.task.GetId(), r.task)

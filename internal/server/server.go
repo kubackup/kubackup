@@ -15,7 +15,7 @@ import (
 	"github.com/kubackup/kubackup/internal/entity/v1/config"
 	fileutil "github.com/kubackup/kubackup/pkg/file"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/fs"
-	"github.com/kubackup/kubackup/pkg/utils"
+	"github.com/kubackup/kubackup/pkg/utils/docker"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"io"
@@ -50,7 +50,7 @@ func Listen(route func(party iris.Party), host string, port int, path string) er
 
 func NewBackupServer(host string, port int, path string) *BackupServer {
 	server := &BackupServer{systemStatus: system_status.Normal}
-	server.isDocker = utils.IsDockerEnv()
+	server.isDocker = docker.IsDockerEnv()
 	server.app = iris.New()
 	c, err := cf.ReadConfig(path)
 	if err != nil {

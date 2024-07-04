@@ -85,6 +85,7 @@ func RunRestore(opts RestoreOptions, repoid int, snapshotid string) error {
 	progressReporter := ui.NewProgress(progress)
 	// 设置进度发送频率
 	progress.SetMinUpdatePause(time.Second)
+	progress.SetWeight(4, 1)
 	progressReporter.SetMinUpdatePause(time.Second)
 	t.Go(func() error { return progressReporter.Run(t.Context(ctx)) })
 	clean.AddCleanCtx(func() {
