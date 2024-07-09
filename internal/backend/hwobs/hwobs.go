@@ -7,11 +7,12 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/huaweicloud/huaweicloud-sdk-go-obs/obs"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend/layout"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend/location"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/errors"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
 	"hash"
 	"io"
-	"io/ioutil"
 	"math"
 	"net/http"
 	"os"
@@ -26,9 +27,17 @@ const defaultLayout = "default"
 
 type HwObs struct {
 	client *obs.ObsClient
-	sem    *backend.Semaphore
 	cfg    Config
-	backend.Layout
+	layout.Layout
+}
+
+func (h *HwObs) Connections() uint {
+	return h.cfg.Connections
+}
+
+// HasAtomicReplace Save()是否能够替换文件
+func (h *HwObs) HasAtomicReplace() bool {
+	return true
 }
 
 type fileInfo struct {
@@ -45,6 +54,10 @@ func (fi *fileInfo) Mode() os.FileMode  { return fi.mode }    // file mode bits
 func (fi *fileInfo) ModTime() time.Time { return fi.modTime } // modification time
 func (fi *fileInfo) IsDir() bool        { return fi.isDir }   // abbreviation for Mode().IsDir()
 func (fi *fileInfo) Sys() interface{}   { return nil }        // underlying data source (can return nil)
+
+func NewFactory() location.Factory {
+	return location.NewHTTPBackendFactory("obs", ParseConfig, location.NoPassword, Create, Open)
+}
 
 func (h *HwObs) ReadDir(ctx context.Context, dir string) (list []os.FileInfo, err error) {
 	if dir[len(dir)-1] != '/' {
@@ -114,17 +127,12 @@ func open(ctx context.Context, cfg Config, rt http.RoundTripper) (*HwObs, error)
 	if err != nil {
 		return nil, errors.Wrap(err, "obs.New")
 	}
-	sem, err := backend.NewSemaphore(cfg.Connections)
-	if err != nil {
-		return nil, err
-	}
 	be := &HwObs{
 		client: client,
-		sem:    sem,
 		cfg:    cfg,
 	}
 
-	l, err := backend.ParseLayout(ctx, be, cfg.Layout, defaultLayout, cfg.Prefix)
+	l, err := layout.ParseLayout(ctx, be, cfg.Layout, defaultLayout, cfg.Prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -142,28 +150,8 @@ func (h *HwObs) Hasher() hash.Hash {
 	return nil
 }
 
-func (h *HwObs) Test(ctx context.Context, handle restic.Handle) (bool, error) {
-	objName := h.Filename(handle)
-	h.sem.GetToken()
-	defer h.sem.ReleaseToken()
-	input := &obs.HeadObjectInput{
-		Bucket: h.cfg.BucketName,
-		Key:    objName,
-	}
-	_, err := h.client.HeadObject(input)
-	if h.IsNotExist(err) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	return true, err
-}
-
 func (h *HwObs) Remove(ctx context.Context, handle restic.Handle) error {
 	objName := h.Filename(handle)
-	h.sem.GetToken()
-	defer h.sem.ReleaseToken()
 	input := &obs.DeleteObjectInput{
 		Bucket: h.cfg.BucketName,
 		Key:    objName,
@@ -192,9 +180,6 @@ func (h *HwObs) Save(ctx context.Context, handle restic.Handle, rd restic.Rewind
 
 	objName := h.Filename(handle)
 
-	h.sem.GetToken()
-	defer h.sem.ReleaseToken()
-
 	input := &obs.PutObjectInput{}
 	input.ContentType = "application/octet-stream"
 	input.Key = objName
@@ -202,7 +187,7 @@ func (h *HwObs) Save(ctx context.Context, handle restic.Handle, rd restic.Rewind
 	input.StorageClass = obs.ParseStringToStorageClassType(h.cfg.StorageClass)
 	input.ContentLength = rd.Length()
 	input.ContentMD5 = base64.StdEncoding.EncodeToString(rd.Hash())
-	input.Body = ioutil.NopCloser(rd)
+	input.Body = io.NopCloser(rd)
 
 	_, err := h.client.PutObject(input)
 	if h.IsAccessDenied(err) {
@@ -215,6 +200,8 @@ func (h *HwObs) Save(ctx context.Context, handle restic.Handle, rd restic.Rewind
 }
 
 func (h *HwObs) Load(ctx context.Context, handle restic.Handle, length int, offset int64, fn func(rd io.Reader) error) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	return backend.DefaultLoad(ctx, handle, length, offset, h.openReader, fn)
 }
 
@@ -247,33 +234,13 @@ func (h *HwObs) openReader(ctx context.Context, handle restic.Handle, length int
 		// 当length大于文件长度时，length传入值为0
 		input.RangeEnd = math.MaxInt64
 	}
-	h.sem.GetToken()
 	object, err := h.client.GetObject(input)
 	if err != nil {
-		h.sem.ReleaseToken()
 		return nil, err
 	}
 	rd := object.Body
 
-	closeRd := wrapReader{
-		ReadCloser: rd,
-		f: func() {
-			h.sem.ReleaseToken()
-		},
-	}
-
-	return closeRd, err
-}
-
-type wrapReader struct {
-	io.ReadCloser
-	f func()
-}
-
-func (wr wrapReader) Close() error {
-	err := wr.ReadCloser.Close()
-	wr.f()
-	return err
+	return rd, err
 }
 
 func (h *HwObs) Stat(ctx context.Context, handle restic.Handle) (restic.FileInfo, error) {
@@ -282,8 +249,6 @@ func (h *HwObs) Stat(ctx context.Context, handle restic.Handle) (restic.FileInfo
 		Bucket: h.cfg.BucketName,
 		Key:    objName,
 	}
-	h.sem.GetToken()
-	defer h.sem.ReleaseToken()
 	object, err := h.client.GetObjectMetadata(input)
 	if err != nil {
 		return restic.FileInfo{}, err
@@ -381,28 +346,8 @@ func (h *HwObs) IsAccessDenied(err error) bool {
 	}
 }
 
-// Remove keys for a specified backend type.
-func (h *HwObs) removeKeys(ctx context.Context, t restic.FileType) error {
-	return h.List(ctx, restic.PackFile, func(fi restic.FileInfo) error {
-		return h.Remove(ctx, restic.Handle{Type: t, Name: fi.Name})
-	})
-}
 func (h *HwObs) Delete(ctx context.Context) error {
-	alltypes := []restic.FileType{
-		restic.PackFile,
-		restic.KeyFile,
-		restic.LockFile,
-		restic.SnapshotFile,
-		restic.IndexFile}
-
-	for _, t := range alltypes {
-		err := h.removeKeys(ctx, t)
-		if err != nil {
-			return nil
-		}
-	}
-
-	return h.Remove(ctx, restic.Handle{Type: restic.ConfigFile})
+	return backend.DefaultDelete(ctx, h)
 }
 
 // Join combines path components with slashes.

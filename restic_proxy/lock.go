@@ -4,11 +4,11 @@ import (
 	"context"
 	"github.com/kubackup/kubackup/internal/model"
 	"github.com/kubackup/kubackup/internal/server"
+	"github.com/pkg/errors"
 	"sync"
 	"time"
 
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/debug"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/errors"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/repository"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
 )

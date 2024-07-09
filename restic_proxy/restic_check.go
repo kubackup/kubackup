@@ -15,6 +15,7 @@ import (
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/fs"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/repository"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/ui"
 	"gopkg.in/tomb.v2"
 	"io/ioutil"
 	"math/rand"
@@ -108,10 +109,10 @@ func parsePercentage(s string) (float64, error) {
 
 // prepareCheckCache configures a special cache directory for check.
 //
-//  * if --with-cache is specified, the default cache is used
-//  * if the user explicitly requested --no-cache, we don't use any cache
-//  * if the user provides --cache-dir, we use a cache in a temporary sub-directory of the specified directory and the sub-directory is deleted after the check
-//  * by default, we use a cache in a temporary directory that is deleted after the check
+//   - if --with-cache is specified, the default cache is used
+//   - if the user explicitly requested --no-cache, we don't use any cache
+//   - if the user provides --cache-dir, we use a cache in a temporary sub-directory of the specified directory and the sub-directory is deleted after the check
+//   - by default, we use a cache in a temporary directory that is deleted after the check
 func prepareCheckCache(opts CheckOptions, gopts GlobalOptions, spr *wsTaskInfo.Sprintf) (cleanup func()) {
 	cleanup = func() {}
 	if opts.WithCache {
@@ -231,81 +232,98 @@ func check(repo *repository.Repository, opts CheckOptions, gopts GlobalOptions, 
 	defer cleanup()
 
 	chkr := checker.New(repo, opts.CheckUnused)
+	err := chkr.LoadSnapshots(ctx)
+	if err != nil {
+		return err
+	}
 
 	spr.Append(wsTaskInfo.Info, fmt.Sprintf("load indexes\n"))
-	hints, errs := chkr.LoadIndex(ctx)
+	pro := newProgressMax(true, 0, "files deleted", spr)
+	hints, errs := chkr.LoadIndex(ctx, pro)
 
-	dupFound := false
+	errorsFound := false
+	suggestIndexRebuild := false
+	mixedFound := false
 	for _, hint := range hints {
-		spr.Append(wsTaskInfo.Info, fmt.Sprintf("%v\n", hint))
-		if _, ok := hint.(checker.ErrDuplicatePacks); ok {
-			dupFound = true
+		switch hint.(type) {
+		case *checker.ErrDuplicatePacks, *checker.ErrOldIndexFormat:
+			spr.Append(wsTaskInfo.Info, fmt.Sprintf("%v\n", hint))
+			suggestIndexRebuild = true
+		case *checker.ErrMixedPack:
+			spr.Append(wsTaskInfo.Info, fmt.Sprintf("%v\n", hint))
+			mixedFound = true
+		default:
+			spr.Append(wsTaskInfo.Error, fmt.Sprintf("error: %v\n", hint))
+			errorsFound = true
 		}
 	}
 
-	if dupFound {
-		spr.Append(wsTaskInfo.Info, fmt.Sprintf("This is non-critical,will run 'rebuildIndex' to correct this\n"))
-		_ = rebuildIndex(RebuildIndexOptions{}, ctx, repo, spr)
-		err := LoadIndex(ctx, repo)
-		if err != nil {
-			spr.Append(wsTaskInfo.Error, err.Error())
-		}
+	if suggestIndexRebuild {
+		spr.Append(wsTaskInfo.Info, fmt.Sprint("Duplicate packs/old indexes are non-critical, you can `rebuild index' to correct this."))
 	}
+	if mixedFound {
+		spr.Append(wsTaskInfo.Info, fmt.Sprint("Mixed packs with tree and data blobs are non-critical, you can `prune` to correct this."))
+	}
+
 	if len(errs) > 0 {
 		for _, err := range errs {
-			spr.Append(wsTaskInfo.Info, fmt.Sprintf("error: %v\n", err))
+			spr.Append(wsTaskInfo.Error, fmt.Sprintf("error: %v\n", err))
 		}
 		return errors.Fatal("LoadIndex returned errors")
 	}
 
-	errorsFound := false
 	orphanedPacks := 0
 	errChan := make(chan error)
 
-	spr.Append(wsTaskInfo.Info, fmt.Sprintf("check all packs\n"))
-	go chkr.Packs(ctx, errChan)
+	spr.Append(wsTaskInfo.Info, fmt.Sprint("check all packs\n"))
 	spr.ResetLimitNum()
+	go chkr.Packs(ctx, errChan)
+
 	for err := range errChan {
 		if checker.IsOrphanedPack(err) {
 			orphanedPacks++
-			spr.AppendLimit(wsTaskInfo.Error, fmt.Sprintf("%v\n", err))
-			continue
+			spr.Append(wsTaskInfo.Error, fmt.Sprintf("%v\n", err))
+		} else if err == checker.ErrLegacyLayout {
+			spr.Append(wsTaskInfo.Error, fmt.Sprint("repository still uses the S3 legacy layout\nPlease run `restic migrate s3legacy` to correct this.\n"))
+		} else {
+			errorsFound = true
+			spr.Append(wsTaskInfo.Error, fmt.Sprintf("%v\n", err))
 		}
-		errorsFound = true
-		spr.AppendLimit(wsTaskInfo.Error, fmt.Sprintf("%v\n", err))
 	}
 
 	if orphanedPacks > 0 {
-		spr.Append(wsTaskInfo.Error, fmt.Sprintf("%d additional files were found in the repo, which likely contain duplicate data.\nYou can run `restic prune` to correct this.\n", orphanedPacks))
+		spr.Append(wsTaskInfo.Error, fmt.Sprintf("%d additional files were found in the repo, which likely contain duplicate data.\nThis is non-critical, you can `prune` to correct this.\n", orphanedPacks))
 	}
 
-	spr.Append(wsTaskInfo.Info, fmt.Sprintf("check snapshots, trees and blobs\n"))
+	spr.Append(wsTaskInfo.Info, fmt.Sprint("check snapshots, trees and blobs\n"))
 	errChan = make(chan error)
 	var wg sync.WaitGroup
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		pro := newProgressMax(true, 0, "snapshots", spr)
+		pro = newProgressMax(true, 0, "snapshots", spr)
 		defer pro.Done()
 		chkr.Structure(ctx, pro, errChan)
 	}()
-	spr.ResetLimitNum()
+
 	for err := range errChan {
 		errorsFound = true
-		if e, ok := err.(checker.TreeError); ok {
-			spr.AppendLimit(wsTaskInfo.Error, fmt.Sprintf("error for tree %v:\n", e.ID.Str()))
+		if e, ok := err.(*checker.TreeError); ok {
+			spr.Append(wsTaskInfo.Error, fmt.Sprintf("error for tree %v:\n", e.ID.Str()))
 			for _, treeErr := range e.Errors {
-				spr.AppendLimit(wsTaskInfo.Error, fmt.Sprintf("%v\n", treeErr))
+				spr.Append(wsTaskInfo.Info, fmt.Sprintf("  %v\n", treeErr))
 			}
 		} else {
-			spr.AppendLimit(wsTaskInfo.Error, fmt.Sprintf("%v\n", err))
+			spr.Append(wsTaskInfo.Error, fmt.Sprintf("error: %v\n", err))
 		}
 	}
+
 	// Wait for the progress bar to be complete before printing more below.
 	// Must happen after `errChan` is read from in the above loop to avoid
 	// deadlocking in the case of errors.
 	wg.Wait()
+
 	if opts.CheckUnused {
 		for _, id := range chkr.UnusedBlobs(ctx) {
 			spr.Append(wsTaskInfo.Info, fmt.Sprintf("unused blob %v\n", id))
@@ -315,15 +333,34 @@ func check(repo *repository.Repository, opts CheckOptions, gopts GlobalOptions, 
 
 	doReadData := func(packs map[restic.ID]int64) {
 		packCount := uint64(len(packs))
-		pro := newProgressMax(true, packCount, "packs", spr)
+
+		p := newProgressMax(true, packCount, "packs", spr)
 		errChan := make(chan error)
-		go chkr.ReadPacks(ctx, packs, pro, errChan)
-		spr.ResetLimitNum()
+
+		go chkr.ReadPacks(ctx, packs, p, errChan)
+
+		var salvagePacks restic.IDs
+
 		for err := range errChan {
 			errorsFound = true
-			spr.AppendLimit(wsTaskInfo.Error, fmt.Sprintf("%v\n", err))
+			spr.Append(wsTaskInfo.Error, fmt.Sprintf("%v\n", err))
+			if err, ok := err.(*checker.ErrPackData); ok {
+				if strings.Contains(err.Error(), "wrong data returned, hash is") {
+					salvagePacks = append(salvagePacks, err.PackID)
+				}
+			}
 		}
-		pro.Done()
+		p.Done()
+
+		if len(salvagePacks) > 0 {
+			spr.Append(wsTaskInfo.Error, fmt.Sprintf("\nThe repository contains pack files with damaged blobs. These blobs must be removed to repair the repository. This can be done using the following commands:\n\n"))
+			var strIds []string
+			for _, id := range salvagePacks {
+				strIds = append(strIds, id.String())
+			}
+			spr.Append(wsTaskInfo.Info, fmt.Sprintf("RESTIC_FEATURES=repair-packs-v1 restic repair packs %v\nrestic repair snapshots --forget\n\n", strings.Join(strIds, " ")))
+			spr.Append(wsTaskInfo.Info, fmt.Sprintf("Corrupted blobs are either caused by hardware problems or bugs in restic. Please open an issue at https://github.com/restic/restic/issues/new/choose for further troubleshooting!\n"))
+		}
 	}
 
 	switch {
@@ -339,10 +376,27 @@ func check(repo *repository.Repository, opts CheckOptions, gopts GlobalOptions, 
 			packs = selectPacksByBucket(chkr.GetPacks(), bucket, totalBuckets)
 			packCount := uint64(len(packs))
 			spr.Append(wsTaskInfo.Info, fmt.Sprintf("read group #%d of %d data packs (out of total %d packs in %d groups)\n", bucket, packCount, chkr.CountPacks(), totalBuckets))
+		} else if strings.HasSuffix(opts.ReadDataSubset, "%") {
+			percentage, err := parsePercentage(opts.ReadDataSubset)
+			if err == nil {
+				packs = selectRandomPacksByPercentage(chkr.GetPacks(), percentage)
+				spr.Append(wsTaskInfo.Info, fmt.Sprintf("read %.1f%% of data packs\n", percentage))
+			}
 		} else {
-			percentage, _ := parsePercentage(opts.ReadDataSubset)
-			packs = selectRandomPacksByPercentage(chkr.GetPacks(), percentage)
-			spr.Append(wsTaskInfo.Info, fmt.Sprintf("read %.1f%% of data packs\n", percentage))
+			repoSize := int64(0)
+			allPacks := chkr.GetPacks()
+			for _, size := range allPacks {
+				repoSize += size
+			}
+			if repoSize == 0 {
+				return errors.Fatal("Cannot read from a repository having size 0")
+			}
+			subsetSize, _ := ui.ParseBytes(opts.ReadDataSubset)
+			if subsetSize > repoSize {
+				subsetSize = repoSize
+			}
+			packs = selectRandomPacksByFileSize(chkr.GetPacks(), subsetSize, repoSize)
+			spr.Append(wsTaskInfo.Info, fmt.Sprintf("read %d bytes of data packs\n", subsetSize))
 		}
 		if packs == nil {
 			return errors.Fatal("internal error: failed to select packs to check")
@@ -351,11 +405,10 @@ func check(repo *repository.Repository, opts CheckOptions, gopts GlobalOptions, 
 	}
 
 	if errorsFound {
-		spr.Append(wsTaskInfo.Error, fmt.Sprint("repository contains errors"))
 		return errors.Fatal("repository contains errors")
 	}
+	spr.Append(wsTaskInfo.Info, fmt.Sprintf("no errors were found\n"))
 
-	spr.Append(wsTaskInfo.Success, fmt.Sprintf("no errors were found\n"))
 	return nil
 }
 
@@ -394,7 +447,6 @@ func selectRandomPacksByPercentage(allPacks map[restic.ID]int64, percentage floa
 		id := keys[idx[i]]
 		packs[id] = allPacks[id]
 	}
-
 	return packs
 }
 
@@ -459,6 +511,12 @@ func GetAllRepoWithStatus(repotype int, name string) ([]repoModel.Repository, er
 		return ress[i].Id > ress[j].Id
 	})
 	return ress, nil
+}
+
+func selectRandomPacksByFileSize(allPacks map[restic.ID]int64, subsetSize int64, repoSize int64) map[restic.ID]int64 {
+	subsetPercentage := (float64(subsetSize) / float64(repoSize)) * 100.0
+	packs := selectRandomPacksByPercentage(allPacks, subsetPercentage)
+	return packs
 }
 
 func AutoCheck() {

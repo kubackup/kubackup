@@ -6,13 +6,12 @@ import (
 	"github.com/kubackup/kubackup/internal/service/v1/common"
 	"github.com/kubackup/kubackup/internal/store/task"
 	wsTaskInfo "github.com/kubackup/kubackup/internal/store/ws_task_info"
-	"github.com/kubackup/kubackup/internal/ui/backup"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/archiver"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/ui"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/ui/backup"
 	"github.com/kubackup/kubackup/pkg/utils"
 	"math"
-	"os"
 	"sort"
 	"time"
 )
@@ -86,7 +85,7 @@ func (t *TaskProgress) print(status interface{}, forceUpdate bool) {
 	t.task.SendMsg(status)
 }
 
-func (t *TaskProgress) Update(total, processed backup.Counter, avgSpeed uint64, errors uint, currentFiles map[string]struct{}, start time.Time, secs uint64) {
+func (t *TaskProgress) Update(total, processed backup.Counter, errors uint, currentFiles map[string]struct{}, start time.Time, secs uint64) {
 	status := model.StatusUpdate{
 		MessageType:      "status",
 		SecondsElapsed:   utils.FormatDuration(time.Since(start)),
@@ -96,7 +95,6 @@ func (t *TaskProgress) Update(total, processed backup.Counter, avgSpeed uint64, 
 		TotalBytes:       utils.FormatBytes(total.Bytes),
 		BytesDone:        utils.FormatBytes(processed.Bytes),
 		ErrorCount:       errors,
-		AvgSpeed:         utils.FormatBytesSpeed(avgSpeed),
 	}
 
 	if total.Bytes > 0 && total.Files > 0 {
@@ -115,7 +113,7 @@ func (t *TaskProgress) Update(total, processed backup.Counter, avgSpeed uint64, 
 	t.print(&status, true)
 }
 
-func (t *TaskProgress) ScannerError(item string, fi os.FileInfo, err error) error {
+func (t *TaskProgress) ScannerError(item string, err error) error {
 	errorUpdate := &model.ErrorUpdate{
 		MessageType: "error",
 		Error:       err.Error(),
@@ -130,7 +128,7 @@ func (t *TaskProgress) ScannerError(item string, fi os.FileInfo, err error) erro
 	return err
 }
 
-func (t *TaskProgress) Error(item string, fi os.FileInfo, err error) error {
+func (t *TaskProgress) Error(item string, err error) error {
 	errorUpdate := model.ErrorUpdate{
 		MessageType: "error",
 		Error:       err.Error(),
@@ -149,7 +147,7 @@ func (t *TaskProgress) Error(item string, fi os.FileInfo, err error) error {
 	return err
 }
 
-func (t *TaskProgress) CompleteItem(messageType, item string, previous, current *restic.Node, s archiver.ItemStats, d time.Duration) {
+func (t *TaskProgress) CompleteItem(messageType string, item string, s archiver.ItemStats, d time.Duration) {
 	var status model.VerboseUpdate
 	switch messageType {
 	case "dir new":
@@ -202,7 +200,7 @@ func (t *TaskProgress) CompleteItem(messageType, item string, previous, current 
 	t.print(&status, false)
 }
 
-func (t *TaskProgress) ReportTotal(item string, start time.Time, s archiver.ScanStats) {
+func (t *TaskProgress) ReportTotal(start time.Time, s archiver.ScanStats) {
 	ver := &model.VerboseUpdate{
 		MessageType: "verbose_status",
 		Action:      "scan_finished",
@@ -245,10 +243,6 @@ func (t *TaskProgress) Finish(snapshotID restic.ID, start time.Time, summary *ba
 			p1.FilesDone = p1.TotalFiles
 			p1.SecondsRemaining = "0"
 			p1.SecondsElapsed = summaryOut.TotalDuration
-			sec := uint64(time.Since(start) / time.Second)
-			if sec > 0 {
-				p1.AvgSpeed = utils.FormatBytesSpeed(summary.ProcessedBytes / sec)
-			}
 			t.print(p1, true)
 		}
 	}

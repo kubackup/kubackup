@@ -9,6 +9,8 @@ import (
 	"github.com/kubackup/kubackup/internal/service/v1/common"
 	"github.com/kubackup/kubackup/internal/store/log"
 	"github.com/kubackup/kubackup/internal/store/ws_task_info"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/index"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/pack"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/repository"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
 	"gopkg.in/tomb.v2"
@@ -79,7 +81,7 @@ func RunRebuildIndex(opts RebuildIndexOptions, repoid int) (int, error) {
 		} else {
 			status = repoModel.StatusRun
 		}
-		err = LoadIndex(ctx, repo)
+		err = repo.LoadIndex(ctx, nil)
 		if err != nil {
 			spr.Append(wsTaskInfo.Error, err.Error())
 		}
@@ -115,11 +117,31 @@ func rebuildIndex(opts RebuildIndexOptions, ctx context.Context, repo *repositor
 		}
 	} else {
 		spr.Append(wsTaskInfo.Info, fmt.Sprintf("loading indexes...\n"))
-		//err := LoadIndex(gopts.ctx, repo)
-		//if err != nil {
-		//	return err
-		//}
-		packSizeFromIndex = repo.Index().PackSize(ctx, false)
+		mi := index.NewMasterIndex()
+		err := index.ForAllIndexes(ctx, repo.Backend(), repo, func(id restic.ID, idx *index.Index, oldFormat bool, err error) error {
+			if err != nil {
+				server.Logger().Warnf("removing invalid index %v: %v\n", id, err)
+				obsoleteIndexes = append(obsoleteIndexes, id)
+				return nil
+			}
+
+			mi.Insert(idx)
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		err = mi.MergeFinalIndexes()
+		if err != nil {
+			return err
+		}
+
+		err = repo.SetIndex(mi)
+		if err != nil {
+			return err
+		}
+		packSizeFromIndex = pack.Size(ctx, repo.Index(), false)
 	}
 
 	spr.Append(wsTaskInfo.Info, fmt.Sprintf("getting pack files to read...\n"))

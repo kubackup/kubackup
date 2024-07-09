@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/kubackup/kubackup/internal/server"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/debug"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/errors"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/filter"
@@ -23,6 +24,8 @@ func RunFind(targetP string, repoid int, snapshotid string) (*LsRes, error) {
 		return nil, err
 	}
 
+	repo := repoHandler.repo
+
 	ctx, cancel := context.WithCancel(repoHandler.gopts.ctx)
 	clean := NewCleanCtx()
 	clean.AddCleanCtx(func() {
@@ -30,22 +33,19 @@ func RunFind(targetP string, repoid int, snapshotid string) (*LsRes, error) {
 	})
 	defer clean.Cleanup()
 
-	var id restic.ID
-
-	if snapshotid == "latest" {
-		id, err = restic.FindLatestSnapshot(ctx, repoHandler.repo, []string{}, []restic.TagList{}, []string{}, nil)
-		if err != nil {
-			return nil, fmt.Errorf("Ignoring %q, no snapshot matched given filter (Paths:%v Tags:%v Hosts:%v)\n", snapshotid, []string{}, []restic.TagList{}, []string{})
-		}
-	} else {
-		id, err = restic.FindSnapshot(ctx, repoHandler.repo, snapshotid)
-		if err != nil {
-			return nil, errors.Errorf("Ignoring %q: %v\n", snapshotid, err)
-		}
-	}
-	sn, err := restic.LoadSnapshot(ctx, repoHandler.repo, id)
+	snapshotLister, err := backend.MemorizeList(ctx, repo.Backend(), restic.SnapshotFile)
 	if err != nil {
-		return nil, errors.Errorf("Ignoring %q, could not load snapshot: %v\n", id, err)
+		return nil, err
+	}
+
+	sn, subfolder, err := (&restic.SnapshotFilter{}).FindLatest(ctx, snapshotLister, repo, snapshotid)
+	if err != nil {
+		return nil, err
+	}
+
+	sn.Tree, err = restic.FindTreeDirectory(ctx, repo, sn.Tree, subfolder)
+	if err != nil {
+		return nil, err
 	}
 	snapshot := lsSnapshot{
 		Snapshot:   sn,
@@ -58,19 +58,19 @@ func RunFind(targetP string, repoid int, snapshotid string) (*LsRes, error) {
 	}
 	lsres := LsRes{}
 	lsres.Snapshot = snapshot
-	tree, err := repoHandler.repo.LoadTree(ctx, *sn.Tree)
+	tree, err := restic.LoadTree(ctx, repo, *sn.Tree)
 	if err != nil {
 		server.Logger().Error(err)
 		return nil, fmt.Errorf("loadIndexing")
 	}
-	res, err := walk(ctx, repoHandler.repo, "/", tree, snapshot.Paths[0]+"/"+targetP)
+	res, err := walk(ctx, repo, "/", tree, snapshot.Paths[0]+"/"+targetP)
 	if err != nil {
 		return nil, err
 	}
 	if len(res) == 0 {
 		start, _ := parseTime("")
 		end, _ := parseTime("")
-		res, err = findInSnapshot(ctx, repoHandler.repo, *sn.Tree, targetP, start, end)
+		res, err = findInSnapshot(ctx, repo, *sn.Tree, targetP, start, end)
 		if err != nil {
 			return nil, err
 		}
@@ -103,7 +103,7 @@ func parseTime(str string) (time.Time, error) {
 	return time.Time{}, errors.Fatalf("unable to parse time: %q", str)
 }
 
-func findInSnapshot(ctx context.Context, repo restic.TreeLoader, tree restic.ID, targetF string, start time.Time, end time.Time) (res []interface{}, err error) {
+func findInSnapshot(ctx context.Context, repo restic.BlobLoader, tree restic.ID, targetF string, start time.Time, end time.Time) (res []interface{}, err error) {
 	res = make([]interface{}, 0)
 	targetF = strings.ToLower(targetF)
 	parttern := []string{targetF}

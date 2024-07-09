@@ -29,10 +29,10 @@ func createHandler() iris.Handler {
 			return
 		}
 		option, _ := resticProxy.GetGlobalOptions(rep)
-		_, err1 := resticProxy.OpenRepository(option)
+		_, err1 := resticProxy.OpenRepository(ctx, option)
 		if err1 != nil {
 			//仓库异常，重新初始化
-			err := resticProxy.RunInit(option)
+			err := resticProxy.RunInit(ctx, option)
 			if err != nil {
 				utils.Errore(ctx, err)
 				return
@@ -119,7 +119,7 @@ func updateHandler() iris.Handler {
 			rep2.Endpoint = rep.Endpoint
 		}
 		option, _ := resticProxy.GetGlobalOptions(*rep2)
-		_, err = resticProxy.OpenRepository(option)
+		_, err = resticProxy.OpenRepository(ctx, option)
 		if err != nil {
 			utils.Errore(ctx, err)
 			return

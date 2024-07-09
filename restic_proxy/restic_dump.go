@@ -62,34 +62,20 @@ func RunDump(opts DumpOptions, repoid int, snapshotid string, info model.DumpInf
 
 	splittedPath := splitPath(path.Clean(info.Filename))
 
-	//err = LoadIndex(ctx, repo)
-	//if err != nil {
-	//	return err
-	//}
-
-	var id restic.ID
-
-	if snapshotIDString == "latest" {
-		id, err = restic.FindLatestSnapshot(ctx, repo, opts.Paths, opts.Tags, opts.Hosts, nil)
-		if err != nil {
-			clean.Cleanup()
-			return fmt.Errorf("latest snapshot for criteria not found: %v Paths:%v Hosts:%v", err, opts.Paths, opts.Hosts)
-		}
-	} else {
-		id, err = restic.FindSnapshot(ctx, repo, snapshotIDString)
-		if err != nil {
-			clean.Cleanup()
-			return fmt.Errorf("invalid id %q: %v", snapshotIDString, err)
-		}
-	}
-
-	sn, err := restic.LoadSnapshot(ctx, repo, id)
+	sn, subfolder, err := (&restic.SnapshotFilter{
+		Hosts: opts.Hosts,
+		Paths: opts.Paths,
+		Tags:  opts.Tags,
+	}).FindLatest(ctx, repo.Backend(), repo, snapshotid)
 	if err != nil {
-		clean.Cleanup()
-		return fmt.Errorf("loading snapshot %q failed: %v", snapshotIDString, err)
+		return errors.Fatalf("failed to find snapshot: %v", err)
+	}
+	sn.Tree, err = restic.FindTreeDirectory(ctx, repo, sn.Tree, subfolder)
+	if err != nil {
+		return err
 	}
 
-	tree, err := repo.LoadTree(ctx, *sn.Tree)
+	tree, err := restic.LoadTree(ctx, repo, *sn.Tree)
 	if err != nil {
 		clean.Cleanup()
 		return fmt.Errorf("loading tree for snapshot %q failed: %v", snapshotIDString, err)
@@ -203,7 +189,7 @@ func printFromTree(ctx context.Context, tree *restic.Tree, repo restic.Repositor
 			case l == 1 && dump.IsFile(node):
 				return d.WriteNode(ctx, node)
 			case l > 1 && dump.IsDir(node):
-				subtree, err := repo.LoadTree(ctx, *node.Subtree)
+				subtree, err := restic.LoadTree(ctx, repo, *node.Subtree)
 				if err != nil {
 					return errors.Wrapf(err, "cannot load subtree for %q", item)
 				}
@@ -212,7 +198,7 @@ func printFromTree(ctx context.Context, tree *restic.Tree, repo restic.Repositor
 				if ftype != "dir" {
 					return fmt.Errorf("文件类型必须为dir")
 				}
-				subtree, err := repo.LoadTree(ctx, *node.Subtree)
+				subtree, err := restic.LoadTree(ctx, repo, *node.Subtree)
 				if err != nil {
 					return err
 				}

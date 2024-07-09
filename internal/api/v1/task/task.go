@@ -109,9 +109,7 @@ func restoreHandler() iris.Handler {
 			Include:            includes,
 			InsensitiveInclude: iincludes,
 			Target:             target,
-			Hosts:              hosts,
-			Paths:              paths,
-			Tags:               tags,
+			SnapshotFilter:     restic.SnapshotFilter{Hosts: hosts, Paths: paths, Tags: tags},
 			Verify:             info.Verify,
 		}
 
@@ -226,7 +224,7 @@ func Backup(planid int) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	opt := resticProxy.BackupOptions{}
+	opt := resticProxy.BackupOptions{UseFsSnapshot: true}
 	taskInfo := task.TaskInfo{
 		Name: ta.Name,
 		Path: ta.Path,

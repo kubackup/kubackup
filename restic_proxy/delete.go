@@ -20,8 +20,6 @@ func DeleteFilesChecked(spr *wsTaskInfo.Sprintf, ctx context.Context, repo resti
 	return deleteFiles(spr, ctx, false, repo, fileList, fileType)
 }
 
-const numDeleteWorkers = 8
-
 // deleteFiles deletes the given fileList of fileType in parallel
 // if ignoreError=true, it will print a warning if there was an error, else it will abort.
 func deleteFiles(spr *wsTaskInfo.Sprintf, ctxx context.Context, ignoreError bool, repo restic.Repository, fileList restic.IDSet, fileType restic.FileType) error {
@@ -42,7 +40,8 @@ func deleteFiles(spr *wsTaskInfo.Sprintf, ctxx context.Context, ignoreError bool
 	pro := newProgressMax(true, uint64(totalCount), "files deleted", spr)
 	defer pro.Done()
 	spr.ResetLimitNum()
-	for i := 0; i < numDeleteWorkers; i++ {
+	workerCount := repo.Connections()
+	for i := 0; i < int(workerCount); i++ {
 		wg.Go(func() error {
 			for id := range fileChan {
 				h := restic.Handle{Type: fileType, Name: id.String()}

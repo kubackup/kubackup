@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend/layout"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend/location"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/errors"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
 	"github.com/tencentyun/cos-go-sdk-v5"
 	"hash"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -27,9 +28,20 @@ const defaultLayout = "default"
 
 type TxCos struct {
 	client *cos.Client
-	sem    *backend.Semaphore
 	cfg    Config
-	backend.Layout
+	layout.Layout
+}
+
+func (t *TxCos) Connections() uint {
+	return t.cfg.Connections
+}
+
+func (t *TxCos) HasAtomicReplace() bool {
+	return true
+}
+
+func NewFactory() location.Factory {
+	return location.NewHTTPBackendFactory("cos", ParseConfig, location.NoPassword, Create, Open)
 }
 
 type fileInfo struct {
@@ -135,17 +147,12 @@ func open(ctx context.Context, cfg Config, rt http.RoundTripper) (*TxCos, error)
 		Timeout: 5 * time.Second,
 	})
 	client.Conf.EnableCRC = cfg.EnableCRC
-	sem, err := backend.NewSemaphore(cfg.Connections)
-	if err != nil {
-		return nil, err
-	}
 	be := &TxCos{
 		client: client,
-		sem:    sem,
 		cfg:    cfg,
 	}
 
-	l, err := backend.ParseLayout(ctx, be, cfg.Layout, defaultLayout, cfg.Prefix)
+	l, err := layout.ParseLayout(ctx, be, cfg.Layout, defaultLayout, cfg.Prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -163,24 +170,8 @@ func (t *TxCos) Hasher() hash.Hash {
 	return nil
 }
 
-func (t *TxCos) Test(ctx context.Context, handle restic.Handle) (bool, error) {
-	objName := t.Filename(handle)
-	t.sem.GetToken()
-	defer t.sem.ReleaseToken()
-
-	ok, err := t.client.Object.IsExist(ctx, objName)
-	if err == nil && ok {
-		return true, err
-	} else {
-		return false, err
-	}
-}
-
 func (t *TxCos) Remove(ctx context.Context, handle restic.Handle) error {
 	objName := t.Filename(handle)
-	t.sem.GetToken()
-	defer t.sem.ReleaseToken()
-
 	_, err := t.client.Object.Delete(ctx, objName)
 	if t.IsAccessDenied(err) {
 		return fmt.Errorf("权限不足")
@@ -205,9 +196,6 @@ func (t *TxCos) Save(ctx context.Context, handle restic.Handle, rd restic.Rewind
 
 	objName := t.Filename(handle)
 
-	t.sem.GetToken()
-	defer t.sem.ReleaseToken()
-
 	opt := &cos.ObjectPutOptions{
 		ObjectPutHeaderOptions: &cos.ObjectPutHeaderOptions{
 			ContentType:      "application/octet-stream",
@@ -217,7 +205,7 @@ func (t *TxCos) Save(ctx context.Context, handle restic.Handle, rd restic.Rewind
 		},
 	}
 
-	_, err := t.client.Object.Put(ctx, objName, ioutil.NopCloser(rd), opt)
+	_, err := t.client.Object.Put(ctx, objName, io.NopCloser(rd), opt)
 	if t.IsAccessDenied(err) {
 		return fmt.Errorf("权限不足")
 	}
@@ -257,40 +245,18 @@ func (t *TxCos) openReader(ctx context.Context, handle restic.Handle, length int
 		Range:               byteRange, // 通过 range 下载0~3字节的数据
 	}
 
-	t.sem.GetToken()
 	object, err := t.client.Object.Get(ctx, objName, opt)
 	if err != nil {
-		t.sem.ReleaseToken()
 		return nil, err
 	}
 	rd := object.Body
 
-	closeRd := wrapReader{
-		ReadCloser: rd,
-		f: func() {
-			t.sem.ReleaseToken()
-		},
-	}
-
-	return closeRd, err
-}
-
-type wrapReader struct {
-	io.ReadCloser
-	f func()
-}
-
-func (wr wrapReader) Close() error {
-	err := wr.ReadCloser.Close()
-	wr.f()
-	return err
+	return rd, err
 }
 
 func (t *TxCos) Stat(ctx context.Context, handle restic.Handle) (restic.FileInfo, error) {
 	objName := t.Filename(handle)
 
-	t.sem.GetToken()
-	defer t.sem.ReleaseToken()
 	resp, err := t.client.Object.Head(ctx, objName, nil)
 	if err != nil {
 		return restic.FileInfo{}, err
@@ -405,28 +371,8 @@ func (t *TxCos) IsAccessDenied(err error) bool {
 	}
 }
 
-// Remove keys for a specified backend type.
-func (t *TxCos) removeKeys(ctx context.Context, ty restic.FileType) error {
-	return t.List(ctx, restic.PackFile, func(fi restic.FileInfo) error {
-		return t.Remove(ctx, restic.Handle{Type: ty, Name: fi.Name})
-	})
-}
 func (t *TxCos) Delete(ctx context.Context) error {
-	alltypes := []restic.FileType{
-		restic.PackFile,
-		restic.KeyFile,
-		restic.LockFile,
-		restic.SnapshotFile,
-		restic.IndexFile}
-
-	for _, ty := range alltypes {
-		err := t.removeKeys(ctx, ty)
-		if err != nil {
-			return nil
-		}
-	}
-
-	return t.Remove(ctx, restic.Handle{Type: restic.ConfigFile})
+	return backend.DefaultDelete(ctx, t)
 }
 
 // Join combines path components with slashes.

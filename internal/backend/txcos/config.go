@@ -20,7 +20,7 @@ type Config struct {
 }
 
 func init() {
-	options.Register("txcos", Config{})
+	options.Register("cos", Config{})
 }
 
 // NewConfig returns a new Config with the default values filled in.
@@ -35,7 +35,7 @@ func NewConfig() Config {
 // ParseConfig parses the string s and extracts the cos config. The two
 // supported configuration formats are cos://host/bucketname/prefix and
 // cos:host/bucketname/prefix. The host can also be a valid obs region
-func ParseConfig(s string) (interface{}, error) {
+func ParseConfig(s string) (*Config, error) {
 	switch {
 	case strings.HasPrefix(s, "cos:http"):
 		// assume that a URL has been specified, parse it and
@@ -65,12 +65,16 @@ func ParseConfig(s string) (interface{}, error) {
 	return createConfig(path[0], path[1:])
 }
 
-func createConfig(endpoint string, p []string) (interface{}, error) {
+func createConfig(endpoint string, p []string) (*Config, error) {
 	cfg := NewConfig()
 	if len(p) > 0 {
 		cfg.Prefix = p[0]
 	}
 	cfg.Endpoint = endpoint
 
-	return cfg, nil
+	return &cfg, nil
+}
+
+func (cfg *Config) ApplyEnvironment(prefix string) {
+
 }

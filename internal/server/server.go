@@ -190,7 +190,7 @@ func (e *BackupServer) setResultHandler() {
 				"data":         nil,
 				"isDocker":     e.isDocker,
 			}
-			_, _ = ctx.JSON(resp)
+			_ = ctx.JSON(resp, iris.JSON{})
 			return
 		}
 		ctx.Next()
@@ -220,7 +220,7 @@ func (e *BackupServer) setResultHandler() {
 				"data":         ctx.Values().Get("data"),
 				"isDocker":     e.isDocker,
 			}
-			_, _ = ctx.JSON(resp)
+			_ = ctx.JSON(resp, iris.JSON{})
 		}
 	})
 }
@@ -243,7 +243,7 @@ func (e *BackupServer) setUpErrHandler() {
 			"isDocker":     e.isDocker,
 		}
 		ctx.StatusCode(iris.StatusOK)
-		_, _ = ctx.JSON(er)
+		_ = ctx.JSON(er, iris.JSON{})
 	})
 }
 
