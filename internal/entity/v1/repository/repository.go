@@ -30,6 +30,8 @@ type Repository struct {
 	Status            int    `json:"status"`
 	Errmsg            string `json:"errmsg"`
 	RepositoryVersion string `json:"repositoryVersion"`
+	Compression       int    `json:"compression"` //压缩模式auto:0、off:1、max:2
+	PackSize          int    `json:"packSize"`
 }
 
 // Type

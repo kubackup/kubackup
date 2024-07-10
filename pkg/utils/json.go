@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 )
 
-// 这个函数接受一个接口作为参数并返回一个字符串
+// ToJSONString 这个函数接受一个接口作为参数并返回一个字符串
 func ToJSONString(status interface{}) string {
+	if status == nil {
+		return ""
+	}
 	// 创建一个新的缓冲区
 	buf := new(bytes.Buffer)
 	// 将状态编码到缓冲区

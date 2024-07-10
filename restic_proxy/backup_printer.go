@@ -18,12 +18,11 @@ import (
 
 type TaskProgress struct {
 	*ui.StdioWrapper
-	task           wsTaskInfo.WsTaskInfo
-	MinUpdatePause time.Duration
-	weightCount    float64 //数量进度权重
-	weightSize     float64 //大小进度权重
-	lastUpdate     time.Time
-	errors         []model.ErrorUpdate
+	task        wsTaskInfo.WsTaskInfo
+	weightCount float64 //数量进度权重
+	weightSize  float64 //大小进度权重
+	lastUpdate  time.Time
+	errors      []model.ErrorUpdate
 }
 
 func (t *TaskProgress) E(msg string, args ...interface{}) {
@@ -36,65 +35,64 @@ func (t *TaskProgress) E(msg string, args ...interface{}) {
 	if len(t.errors) > 20 {
 		return
 	}
-	t.print(errorUpdate, true)
+	t.print(errorUpdate)
 	t.errors = append(t.errors, errorUpdate)
 	_ = taskHistoryService.UpdateField(t.task.GetId(), "ArchivalError", t.errors, common.DBOptions{})
 }
 
 func (t *TaskProgress) P(msg string, args ...interface{}) {
-	t.print(msg, true)
+	t.print(msg)
 }
 
 func (t *TaskProgress) V(msg string, args ...interface{}) {
-	t.print(msg, true)
+	t.print(msg)
 }
 
 func (t *TaskProgress) VV(msg string, args ...interface{}) {
-	t.print(msg, true)
+	t.print(msg)
 }
 
 var _ backup.ProgressPrinter = &TaskProgress{}
 
 func NewTaskProgress(task wsTaskInfo.WsTaskInfo) *TaskProgress {
 	return &TaskProgress{
-		task:           task,
-		errors:         make([]model.ErrorUpdate, 0),
-		MinUpdatePause: time.Second,
-		weightCount:    1,
-		weightSize:     1,
+		task:        task,
+		errors:      make([]model.ErrorUpdate, 0),
+		weightCount: 1,
+		weightSize:  1,
 	}
 }
 
 func (t *TaskProgress) UpdateTaskInfo(task wsTaskInfo.WsTaskInfo) {
 	t.task = task
 }
-func (t *TaskProgress) SetMinUpdatePause(d time.Duration) {
-	t.MinUpdatePause = d
-}
 func (t *TaskProgress) SetWeight(weightCount, weightSize float64) {
 	t.weightSize = weightSize
 	t.weightCount = weightCount
 }
 
-func (t *TaskProgress) print(status interface{}, forceUpdate bool) {
-	//控制发送频率
-	if !forceUpdate && (time.Since(t.lastUpdate) < t.MinUpdatePause || t.MinUpdatePause == 0) {
-		return
-	}
+func (t *TaskProgress) print(status interface{}) {
 	t.lastUpdate = time.Now()
 	t.task.SendMsg(status)
 }
 
 func (t *TaskProgress) Update(total, processed backup.Counter, errors uint, currentFiles map[string]struct{}, start time.Time, secs uint64) {
+	duration := time.Since(start)
+	avg := ""
+	if duration/time.Second > 0 {
+		avg = utils.FormatBytesSpeed(processed.Bytes / uint64(duration/time.Second))
+	}
+
 	status := model.StatusUpdate{
 		MessageType:      "status",
-		SecondsElapsed:   utils.FormatDuration(time.Since(start)),
+		SecondsElapsed:   utils.FormatDuration(duration),
 		SecondsRemaining: utils.FormatSeconds(secs),
 		TotalFiles:       total.Files,
 		FilesDone:        processed.Files,
 		TotalBytes:       utils.FormatBytes(total.Bytes),
 		BytesDone:        utils.FormatBytes(processed.Bytes),
 		ErrorCount:       errors,
+		AvgSpeed:         avg,
 	}
 
 	if total.Bytes > 0 && total.Files > 0 {
@@ -110,7 +108,7 @@ func (t *TaskProgress) Update(total, processed backup.Counter, errors uint, curr
 	sort.Strings(status.CurrentFiles)
 	t.task.(*task.TaskInfo).Progress = &status
 	task.TaskInfos.Set(t.task.GetId(), t.task)
-	t.print(&status, true)
+	t.print(&status)
 }
 
 func (t *TaskProgress) ScannerError(item string, err error) error {
@@ -120,7 +118,7 @@ func (t *TaskProgress) ScannerError(item string, err error) error {
 		During:      "scan",
 		Item:        item,
 	}
-	t.print(errorUpdate, true)
+	t.print(errorUpdate)
 	err1 := taskHistoryService.UpdateField(t.task.GetId(), "ScannerError", errorUpdate, common.DBOptions{})
 	if err1 != nil {
 		return err1
@@ -138,7 +136,7 @@ func (t *TaskProgress) Error(item string, err error) error {
 	if len(t.errors) > 20 {
 		return err
 	}
-	t.print(&errorUpdate, true)
+	t.print(&errorUpdate)
 	t.errors = append(t.errors, errorUpdate)
 	err1 := taskHistoryService.UpdateField(t.task.GetId(), "ArchivalError", t.errors, common.DBOptions{})
 	if err1 != nil {
@@ -197,7 +195,7 @@ func (t *TaskProgress) CompleteItem(messageType string, item string, s archiver.
 			DataSize:    utils.FormatBytes(s.DataSize),
 		}
 	}
-	t.print(&status, false)
+	t.print(&status)
 }
 
 func (t *TaskProgress) ReportTotal(start time.Time, s archiver.ScanStats) {
@@ -208,7 +206,7 @@ func (t *TaskProgress) ReportTotal(start time.Time, s archiver.ScanStats) {
 		DataSize:    utils.FormatBytes(s.Bytes),
 		TotalFiles:  s.Files,
 	}
-	t.print(ver, true)
+	t.print(ver)
 	err := taskHistoryService.UpdateField(t.task.GetId(), "Scanner", ver, common.DBOptions{})
 	if err != nil {
 		return
@@ -235,7 +233,7 @@ func (t *TaskProgress) Finish(snapshotID restic.ID, start time.Time, summary *ba
 			SnapshotID:          snapshotID.Str(),
 			DryRun:              dryRun,
 		}
-		t.print(summaryOut, true)
+		t.print(summaryOut)
 		p1 = t.task.(*task.TaskInfo).Progress
 		if p1 != nil {
 			p1.BytesDone = p1.TotalBytes
@@ -243,7 +241,7 @@ func (t *TaskProgress) Finish(snapshotID restic.ID, start time.Time, summary *ba
 			p1.FilesDone = p1.TotalFiles
 			p1.SecondsRemaining = "0"
 			p1.SecondsElapsed = summaryOut.TotalDuration
-			t.print(p1, true)
+			t.print(p1)
 		}
 	}
 	taskhis, err3 := taskHistoryService.Get(t.task.GetId(), common.DBOptions{})

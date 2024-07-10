@@ -2,16 +2,17 @@ package model
 
 // StatusUpdate 进度
 type StatusUpdate struct {
-	MessageType      string   `json:"messageType"`      // "status"
-	SecondsElapsed   string   `json:"secondsElapsed"`   // 已用时间
-	SecondsRemaining string   `json:"secondsRemaining"` // 剩余时间
-	PercentDone      float64  `json:"percentDone"`      // 进度
-	TotalFiles       uint64   `json:"totalFiles"`       // 文件总数
-	FilesDone        uint64   `json:"filesDone"`        // 完成文件数
-	TotalBytes       string   `json:"totalBytes"`       // 文件总大小
-	BytesDone        string   `json:"bytesDone"`        // 完成文件大小
-	ErrorCount       uint     `json:"errorCount"`       // 错误数量
-	CurrentFiles     []string `json:"currentFiles"`     // 当前文件列表
+	MessageType      string   `json:"messageType"`        // "status"
+	SecondsElapsed   string   `json:"secondsElapsed"`     // 已用时间
+	SecondsRemaining string   `json:"secondsRemaining"`   // 剩余时间
+	PercentDone      float64  `json:"percentDone"`        // 进度
+	TotalFiles       uint64   `json:"totalFiles"`         // 文件总数
+	FilesDone        uint64   `json:"filesDone"`          // 完成文件数
+	TotalBytes       string   `json:"totalBytes"`         // 文件总大小
+	BytesDone        string   `json:"bytesDone"`          // 完成文件大小
+	ErrorCount       uint     `json:"errorCount"`         // 错误数量
+	CurrentFiles     []string `json:"currentFiles"`       // 当前文件列表
+	AvgSpeed         string   `json:"avgSpeed,omitempty"` //平均速度
 }
 
 // ErrorUpdate 错误

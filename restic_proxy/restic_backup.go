@@ -13,6 +13,7 @@ import (
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/repository"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/ui/backup"
+	"github.com/kubackup/kubackup/pkg/utils"
 	"gopkg.in/tomb.v2"
 	"os"
 	"runtime"
@@ -57,6 +58,13 @@ func RunBackup(opts BackupOptions, repoid int, taskinfo task.TaskInfo) error {
 		}
 		opts.Host = hostname
 	}
+	if opts.ReadConcurrency == 0 {
+		cpu := utils.GetCpuThreads()
+		if cpu == 0 {
+			cpu = 2
+		}
+		opts.ReadConcurrency = uint(cpu)
+	}
 	repoHandler, err := GetRepository(repoid)
 	if err != nil {
 		return err
@@ -74,15 +82,13 @@ func RunBackup(opts BackupOptions, repoid int, taskinfo task.TaskInfo) error {
 
 	var t tomb.Tomb
 	progressPrinter := NewTaskProgress(&taskinfo)
-	progressReporter := backup.NewProgress(progressPrinter, 1)
+	progressReporter := backup.NewProgress(progressPrinter, time.Second)
 	clean.AddCleanCtx(func() {
 		progressReporter.Done()
 	})
 	if opts.DryRun {
 		repo.SetDryRun()
 	}
-	// 设置进度发送频率
-	progressPrinter.SetMinUpdatePause(time.Second)
 	lock, err := lockRepo(ctx, repo)
 	if err != nil {
 		clean.Cleanup()
@@ -106,10 +112,12 @@ func RunBackup(opts BackupOptions, repoid int, taskinfo task.TaskInfo) error {
 		clean.Cleanup()
 		return err
 	}
-	err = taskHistoryService.UpdateField(taskinfo.GetId(), "ParentId", parentSnapshot.ID().Str(), common.DBOptions{})
-	if err != nil {
-		clean.Cleanup()
-		return err
+	if parentSnapshot != nil {
+		err = taskHistoryService.UpdateField(taskinfo.GetId(), "ParentId", parentSnapshot.ID().Str(), common.DBOptions{})
+		if err != nil {
+			clean.Cleanup()
+			return err
+		}
 	}
 
 	selectByNameFilter := func(item string) bool {

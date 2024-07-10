@@ -138,14 +138,17 @@ func GetGlobalOptions(rep repoModel.Repository) (GlobalOptions, context.CancelFu
 	} else {
 		repo = types + rep.Endpoint + "/" + rep.Bucket
 	}
+	if rep.PackSize == 0 {
+		rep.PackSize = 16
+	}
 	var globalOptions = GlobalOptions{
 		Repo:              repo,
 		KeyId:             rep.KeyId,
 		Secret:            rep.Secret,
 		Region:            rep.Region,
 		CleanupCache:      true,
-		Compression:       repository.CompressionOff, //压缩模式
-		PackSize:          0,
+		Compression:       repository.CompressionMode(rep.Compression), //压缩模式
+		PackSize:          uint(rep.PackSize),
 		NoExtraVerify:     false,
 		ProjectID:         rep.ProjectID,
 		AccountName:       rep.AccountName,
@@ -156,9 +159,6 @@ func GetGlobalOptions(rep repoModel.Repository) (GlobalOptions, context.CancelFu
 		CacheDir:          server.Config().Data.CacheDir,
 		NoCache:           server.Config().Data.NoCache,
 		Options:           []string{},
-	}
-	if rep.RepositoryVersion == "" {
-		globalOptions.RepositoryVersion = "2"
 	}
 	backends := location.NewRegistry()
 	backends.Register(azure.NewFactory())

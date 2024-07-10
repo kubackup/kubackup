@@ -8,6 +8,7 @@ import (
 	repositoryDao "github.com/kubackup/kubackup/internal/service/v1/repository"
 	"github.com/kubackup/kubackup/pkg/utils"
 	resticProxy "github.com/kubackup/kubackup/restic_proxy"
+	"strconv"
 )
 
 var repositoryService repositoryDao.Service
@@ -32,11 +33,12 @@ func createHandler() iris.Handler {
 		_, err1 := resticProxy.OpenRepository(ctx, option)
 		if err1 != nil {
 			//仓库异常，重新初始化
-			err := resticProxy.RunInit(ctx, option)
+			version, err := resticProxy.RunInit(ctx, option)
 			if err != nil {
 				utils.Errore(ctx, err)
 				return
 			}
+			rep.RepositoryVersion = strconv.Itoa(int(version))
 		}
 		rep.Status = repository.StatusNone
 		err = repositoryService.Create(&rep, common.DBOptions{})
@@ -118,6 +120,8 @@ func updateHandler() iris.Handler {
 		if rep.Endpoint != "" {
 			rep2.Endpoint = rep.Endpoint
 		}
+		rep2.Compression = rep.Compression
+		rep2.PackSize = rep.PackSize
 		option, _ := resticProxy.GetGlobalOptions(*rep2)
 		_, err = resticProxy.OpenRepository(ctx, option)
 		if err != nil {

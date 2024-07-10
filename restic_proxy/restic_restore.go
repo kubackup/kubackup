@@ -100,8 +100,8 @@ func RunRestore(opts RestoreOptions, repoid int, snapshotid string) error {
 	}
 	taskInfo.SetId(ta.Id)
 	printer := NewRestorePrinter(&taskInfo)
-	progressReporter := restoreui.NewProgress(printer, 1)
-	// 设置进度发送频率
+	progressReporter := restoreui.NewProgress(printer, time.Second)
+	// 设置进度权重
 	printer.SetWeight(4, 1)
 
 	sn, subfolder, err := (&restic.SnapshotFilter{
@@ -209,7 +209,6 @@ func RunRestore(opts RestoreOptions, repoid int, snapshotid string) error {
 			server.Logger().Error(err)
 			_ = printer.Error("RestoreTo", err)
 		}
-		progressReporter.Finish()
 		if opts.Verify {
 			server.Logger().Debugf("verifying files in %s\n", opts.Target)
 			t0 := time.Now()
@@ -217,9 +216,7 @@ func RunRestore(opts RestoreOptions, repoid int, snapshotid string) error {
 			if err != nil {
 				_ = printer.Error("VerifyFiles", err)
 			}
-			server.Logger().Debugf("finished verifying %d files in %s (took %s)\n", count, opts.Target,
-				time.Since(t0).Round(time.Millisecond))
-			printer.Print(fmt.Sprintf("finished verifying %d files in %s (took %s)\n", count, opts.Target,
+			printer.ReportVerify(fmt.Sprintf("finished verifying %d files in %s (took %s)\n", count, opts.Target,
 				time.Since(t0).Round(time.Millisecond)))
 		}
 		t.Kill(nil)
@@ -227,6 +224,7 @@ func RunRestore(opts RestoreOptions, repoid int, snapshotid string) error {
 		if werr != nil {
 			server.Logger().Error(werr)
 		}
+		progressReporter.Finish()
 	}()
 	return nil
 

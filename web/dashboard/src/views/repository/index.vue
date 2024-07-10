@@ -39,6 +39,13 @@
           {{ formatType(row.type).name }}
         </template>
       </el-table-column>
+      <el-table-column class-name="status-col" label="压缩模式" width="110">
+        <template slot-scope="{row}">
+          <el-tag :type="formatCompression(row.compression).color">
+            {{ formatCompression(row.compression).name }}
+          </el-tag>
+        </template>
+      </el-table-column>
 
       <el-table-column class-name="status-col" label="连接状态" width="110">
         <template slot-scope="{row}">
@@ -81,7 +88,7 @@
         <el-form-item label="名称" prop="name">
           <el-input v-model="temp.name" clearable/>
         </el-form-item>
-        <el-form-item label="类型" prop="type">
+        <el-form-item label="存储类型" prop="type">
           <el-select v-model="temp.type" placeholder="请选择" @change="this.onTypeChange">
             <el-option v-for="item in typeList" :key="item.code" :label="item.name" :value="item.code"/>
           </el-select>
@@ -126,6 +133,16 @@
         <el-form-item v-if="dialogStatus === 'create'" label="确认密码" prop="confirmPassword">
           <el-input v-model="temp.confirmPassword" show-password clearable type="password"/>
         </el-form-item>
+        <el-form-item label="压缩模式" prop="type">
+          <el-select v-model="temp.compression" placeholder="请选择">
+            <el-option v-for="item in compressionList" :key="item.code" :label="item.name" :value="item.code"/>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="PackSize" prop="PackSize">
+          <el-input v-model="temp.packSize" clearable>
+            <template slot="append">MiB</template>
+          </el-input>
+        </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
         <el-button @click="dialogFormVisible = false">
@@ -146,7 +163,7 @@
 <script>
 import {fetchCreate, fetchDel, fetchList, fetchUpdate} from '@/api/repository'
 import {dateFormat} from '@/utils'
-import {repoStatusList, repoTypeList} from "@/consts";
+import {repoStatusList, repoTypeList, compressionList} from "@/consts";
 
 export default {
   name: 'RepositoryList',
@@ -163,6 +180,7 @@ export default {
     return {
       typeList: repoTypeList,
       statusList: repoStatusList,
+      compressionList: compressionList,
       list: [],
       listLoading: false,
       listQuery: {
@@ -193,7 +211,9 @@ export default {
         accountKey: '',
         accountId: '',
         password: '',
-        confirmPassword: ''
+        confirmPassword: '',
+        compression: 0,
+        packSize: 16
       },
       rules: {
         name: [{required: true, message: '该项为必填项', trigger: 'blur'}],
@@ -231,7 +251,9 @@ export default {
         accountId: '',
         password: '',
         user: '',
-        authpwd: ''
+        authpwd: '',
+        compression: 0,
+        packSize: 16
       }
       this.endPointPlaceholder = ''
     },
@@ -288,6 +310,7 @@ export default {
       this.$refs['dataForm'].validate((valid) => {
         if (valid) {
           this.buttonLoading = true
+          this.temp.packSize = Number(this.temp.packSize)
           fetchCreate(this.temp).then(() => {
             this.$notify.success('创建成功！')
             this.buttonLoading = false
@@ -311,6 +334,7 @@ export default {
       this.$refs['dataForm'].validate((valid) => {
         if (valid) {
           this.buttonLoading = true
+          this.temp.packSize = Number(this.temp.packSize)
           fetchUpdate(this.temp).then(() => {
             this.$notify.success('修改成功！')
             this.buttonLoading = false
@@ -339,6 +363,9 @@ export default {
     },
     formatType(code) {
       return this.typeList.find(item => item.code === code)
+    },
+    formatCompression(code) {
+      return this.compressionList.find(item => item.code === code)
     },
     formatStatus(code) {
       return this.statusList.find(item => item.code === code)

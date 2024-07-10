@@ -97,6 +97,7 @@
                   <span style="margin-left: 5px">{{ node.label }}</span>
                 </div>
                 <span>
+                  <span style="margin-right: 10px; font-size: 13px; display: inline">{{data.size}}</span>
                   <i class="el-icon-loading" type="primary" v-if="data.loading"/>
                   <el-button
                     v-if="data.type==='file'&& !data.loading"
@@ -376,6 +377,7 @@ export default {
               ctime: node.ctime,
               gid: node.gid,
               uid: node.uid,
+              size: node.size,
               children: []
             }
             this.filedata.children.push(newChild)
@@ -453,6 +455,7 @@ export default {
         ctime: '',
         gid: '',
         uid: '',
+        size: '',
         children: []
       }]
       this.getFiles(this.filedata, {
@@ -513,6 +516,7 @@ export default {
               ctime: node.ctime,
               gid: node.gid,
               uid: node.uid,
+              size: node.size,
               children: []
             }]
           }
@@ -529,6 +533,7 @@ export default {
             ctime: node.ctime,
             gid: node.gid,
             uid: node.uid,
+            size: node.size,
             children: dirChild
           }
           if (data.isMore === 1) {

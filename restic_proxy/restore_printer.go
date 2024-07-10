@@ -34,6 +34,10 @@ func (r *restorePrinter) Update(filesFinished, filesTotal, allBytesWritten, allB
 	// 预计剩余时间
 	todo := float64(allBytesTotal - allBytesWritten)
 	secs := uint64(float64(duration/time.Second) / float64(allBytesWritten) * todo)
+	avg := ""
+	if duration/time.Second > 0 {
+		avg = utils.FormatBytesSpeed(allBytesWritten / uint64(duration/time.Second))
+	}
 
 	status := model.StatusUpdate{
 		MessageType:      "status",
@@ -44,6 +48,7 @@ func (r *restorePrinter) Update(filesFinished, filesTotal, allBytesWritten, allB
 		TotalBytes:       utils.FormatBytes(allBytesTotal),
 		BytesDone:        utils.FormatBytes(allBytesWritten),
 		PercentDone:      0,
+		AvgSpeed:         avg,
 	}
 
 	if allBytesTotal > 0 && filesTotal > 0 {
@@ -157,4 +162,13 @@ func (r *restorePrinter) ReportTotal(start time.Time, totalSize, totalCount uint
 
 func (r *restorePrinter) Print(msg string) {
 	r.task.SendMsg(msg)
+}
+
+func (r *restorePrinter) ReportVerify(msg string) {
+	ver := &model.VerboseUpdate{
+		MessageType: "summary",
+		Action:      "verify_finished",
+		Item:        msg,
+	}
+	r.task.SendMsg(ver)
 }
