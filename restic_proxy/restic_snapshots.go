@@ -10,13 +10,11 @@ import (
 )
 
 type SnapshotOptions struct {
-	Hosts   []string
-	Tags    restic.TagLists
-	Paths   []string
+	restic.SnapshotFilter
 	Compact bool
 	Last    bool // This option should be removed in favour of Latest.
 	Latest  int
-	GroupBy string
+	GroupBy restic.SnapshotGroupByOptions
 }
 type SnapshotRes struct {
 	*restic.Snapshot
@@ -56,7 +54,7 @@ func GetParms(repoid int, hosts []string) (*SnapshotParm, error) {
 	res := &SnapshotParm{}
 	tags := make([]string, 0)
 	paths := make(map[string][]string, 0)
-	for sn := range FindFilteredSnapshots(ctx, repo, hosts, restic.TagLists{}, []string{}, []string{}) {
+	for sn := range FindFilteredSnapshots(ctx, repo.Backend(), repo, &restic.SnapshotFilter{Hosts: hosts}, []string{}) {
 		ps := paths[sn.Hostname]
 		if len(sn.Paths) > 0 && arrays.ContainsString(ps, sn.Paths[0]) < 0 {
 			ps = append(ps, sn.Paths...)
@@ -96,7 +94,7 @@ func RunSnapshots(opts SnapshotOptions, repoid int, snapshotids []string) ([]int
 	defer clean.Cleanup()
 
 	var snapshots restic.Snapshots
-	for sn := range FindFilteredSnapshots(ctx, repo, opts.Hosts, opts.Tags, opts.Paths, snapshotids) {
+	for sn := range FindFilteredSnapshots(ctx, repo.Backend(), repo, &opts.SnapshotFilter, snapshotids) {
 		snapshots = append(snapshots, sn)
 	}
 	snapshotGroups, grouped, err := restic.GroupSnapshots(snapshots, opts.GroupBy)

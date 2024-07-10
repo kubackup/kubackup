@@ -45,22 +45,17 @@ type backendWrapper func(r restic.Backend) (restic.Backend, error)
 
 // GlobalOptions hold all global options for restic.
 type GlobalOptions struct {
-	Repo            string
-	RepositoryFile  string
-	PasswordFile    string
-	PasswordCommand string
-	KeyHint         string
-	Quiet           bool
-	Verbose         int
-	NoLock          bool
-	RetryLock       time.Duration
-	JSON            bool
-	CacheDir        string
-	NoCache         bool
-	CleanupCache    bool
-
-	RepositoryVersion string
-
+	ctx           context.Context
+	Repo          string
+	KeyHint       string
+	Quiet         bool
+	Verbose       int
+	NoLock        bool
+	RetryLock     time.Duration
+	JSON          bool
+	CacheDir      string
+	NoCache       bool
+	CleanupCache  bool
 	Compression   repository.CompressionMode
 	PackSize      uint
 	NoExtraVerify bool
@@ -68,7 +63,6 @@ type GlobalOptions struct {
 	backend.TransportOptions
 	limiter.Limits
 
-	ctx context.Context
 	// AWS_ACCESS_KEY_ID
 	KeyId string
 	// AWS_SECRET_ACCESS_KEY
@@ -98,6 +92,8 @@ type GlobalOptions struct {
 	Options []string
 
 	extended options.Options
+
+	RepositoryVersion string
 }
 
 type Repository struct {
@@ -148,7 +144,7 @@ func GetGlobalOptions(rep repoModel.Repository) (GlobalOptions, context.CancelFu
 		Secret:            rep.Secret,
 		Region:            rep.Region,
 		CleanupCache:      true,
-		Compression:       repository.CompressionAuto,
+		Compression:       repository.CompressionOff, //压缩模式
 		PackSize:          0,
 		NoExtraVerify:     false,
 		ProjectID:         rep.ProjectID,
@@ -159,10 +155,10 @@ func GetGlobalOptions(rep repoModel.Repository) (GlobalOptions, context.CancelFu
 		RepositoryVersion: rep.RepositoryVersion,
 		CacheDir:          server.Config().Data.CacheDir,
 		NoCache:           server.Config().Data.NoCache,
-		Options:           []string{"s3.bucket-lookup=dns", "s3.region=" + rep.Region},
+		Options:           []string{},
 	}
 	if rep.RepositoryVersion == "" {
-		globalOptions.RepositoryVersion = "1"
+		globalOptions.RepositoryVersion = "2"
 	}
 	backends := location.NewRegistry()
 	backends.Register(azure.NewFactory())
@@ -375,20 +371,190 @@ func OpenRepository(ctx context.Context, opts GlobalOptions) (*repository.Reposi
 	return s, nil
 }
 
-func parseConfig(loc location.Location, opts options.Options) (interface{}, error) {
-	cfg := loc.Config
-	if cfg, ok := cfg.(restic.ApplyEnvironmenter); ok {
-		cfg.ApplyEnvironment("")
-	}
-
+// parseConfig 配置各个后端特有参数
+func parseConfig(loc location.Location, gopts GlobalOptions, opts options.Options) (interface{}, error) {
 	// only apply options for a particular backend here
 	opts = opts.Extract(loc.Scheme)
-	if err := opts.Apply(loc.Scheme, cfg); err != nil {
-		return nil, err
+
+	switch loc.Scheme {
+	case "local":
+		cfg := loc.Config.(*local.Config)
+		if err := opts.Apply(loc.Scheme, cfg); err != nil {
+			return nil, err
+		}
+		debug.Log("opening local repository at %#v", cfg)
+		return cfg, nil
+
+	case "sftp":
+		cfg := loc.Config.(*sftp.Config)
+		if err := opts.Apply(loc.Scheme, cfg); err != nil {
+			return nil, err
+		}
+
+		debug.Log("opening sftp repository at %#v", cfg)
+		return cfg, nil
+
+	case "s3":
+		cfg := loc.Config.(*s3.Config)
+		if cfg.KeyID == "" {
+			cfg.KeyID = gopts.KeyId
+		}
+
+		if cfg.Secret.String() == "" {
+			cfg.Secret = options.NewSecretString(gopts.Secret)
+		}
+
+		if cfg.KeyID == "" && cfg.Secret.String() != "" {
+			return nil, errors.Fatalf("unable to open S3 backend: Key ID (KeyId) is empty")
+		} else if cfg.KeyID != "" && cfg.Secret.String() == "" {
+			return nil, errors.Fatalf("unable to open S3 backend: Secret (Secret) is empty")
+		}
+
+		if cfg.Region == "" {
+			cfg.Region = gopts.Region
+		}
+
+		if err := opts.Apply(loc.Scheme, cfg); err != nil {
+			return nil, err
+		}
+
+		debug.Log("opening s3 repository at %#v", cfg)
+		return cfg, nil
+
+	case "gs":
+		cfg := loc.Config.(*gs.Config)
+		if cfg.ProjectID == "" {
+			cfg.ProjectID = gopts.ProjectID
+		}
+
+		if err := opts.Apply(loc.Scheme, &cfg); err != nil {
+			return nil, err
+		}
+
+		debug.Log("opening gs repository at %#v", cfg)
+		return cfg, nil
+
+	case "azure":
+		cfg := loc.Config.(*azure.Config)
+		if cfg.AccountName == "" {
+			cfg.AccountName = gopts.AccountName
+		}
+
+		if cfg.AccountKey.String() == "" {
+			cfg.AccountKey = options.NewSecretString(gopts.AccountKey)
+		}
+
+		if err := opts.Apply(loc.Scheme, cfg); err != nil {
+			return nil, err
+		}
+
+		debug.Log("opening gs repository at %#v", cfg)
+		return cfg, nil
+
+	case "swift":
+		cfg := loc.Config.(*swift.Config)
+
+		if err := opts.Apply(loc.Scheme, cfg); err != nil {
+			return nil, err
+		}
+
+		debug.Log("opening swift repository at %#v", cfg)
+		return cfg, nil
+
+	case "b2":
+		cfg := loc.Config.(*b2.Config)
+
+		if cfg.AccountID == "" {
+			cfg.AccountID = gopts.AccountID
+		}
+
+		if cfg.AccountID == "" {
+			return nil, errors.Fatalf("unable to open B2 backend: Account ID (AccountID) is empty")
+		}
+
+		if cfg.Key.String() == "" {
+			cfg.Key = options.NewSecretString(gopts.AccountKey)
+		}
+
+		if cfg.Key.String() == "" {
+			return nil, errors.Fatalf("unable to open B2 backend: Key (AccountKey) is empty")
+		}
+
+		if err := opts.Apply(loc.Scheme, cfg); err != nil {
+			return nil, err
+		}
+
+		debug.Log("opening b2 repository at %#v", cfg)
+		return cfg, nil
+	case "rest":
+		cfg := loc.Config.(*rest.Config)
+		if err := opts.Apply(loc.Scheme, cfg); err != nil {
+			return nil, err
+		}
+
+		debug.Log("opening rest repository at %#v", cfg)
+		return cfg, nil
+	case "rclone":
+		cfg := loc.Config.(*rclone.Config)
+		if err := opts.Apply(loc.Scheme, cfg); err != nil {
+			return nil, err
+		}
+
+		debug.Log("opening rest repository at %#v", cfg)
+		return cfg, nil
+	case "obs":
+		cfg := loc.Config.(*hwobs.Config)
+		if cfg.Ak == "" {
+			cfg.Ak = gopts.KeyId
+		}
+
+		if cfg.Sk == "" {
+			cfg.Sk = gopts.Secret
+		}
+
+		if cfg.Ak == "" {
+			return nil, errors.Fatalf("unable to open OBS backend: Ak is empty")
+		}
+		if cfg.Sk == "" {
+			return nil, errors.Fatalf("unable to open OBS backend: Sk is empty")
+		}
+
+		cfg.SslEnable = gopts.InsecureTLS
+
+		if err := opts.Apply(loc.Scheme, cfg); err != nil {
+			return nil, err
+		}
+
+		debug.Log("opening OBS repository at %#v", cfg)
+		return cfg, nil
+	case "cos":
+		cfg := loc.Config.(*txcos.Config)
+		if cfg.SecretID == "" {
+			cfg.SecretID = gopts.KeyId
+		}
+
+		if cfg.SecretKey == "" {
+			cfg.SecretKey = gopts.Secret
+		}
+
+		if cfg.SecretID == "" {
+			return nil, errors.Fatalf("unable to open COS backend: SecretID is empty")
+		}
+		if cfg.SecretKey == "" {
+			return nil, errors.Fatalf("unable to open COS backend: SecretKey is empty")
+		}
+
+		cfg.EnableCRC = gopts.InsecureTLS
+
+		if err := opts.Apply(loc.Scheme, cfg); err != nil {
+			return nil, err
+		}
+
+		debug.Log("opening COS repository at %#v", cfg)
+		return cfg, nil
 	}
 
-	debug.Log("opening %v repository at %#v", loc.Scheme, cfg)
-	return cfg, nil
+	return nil, errors.Fatalf("invalid backend: %q", loc.Scheme)
 }
 
 // Open the backend specified by a location config.
@@ -402,7 +568,7 @@ func open(ctx context.Context, s string, gopts GlobalOptions, opts options.Optio
 
 	var be restic.Backend
 
-	cfg, err := parseConfig(loc, opts)
+	cfg, err := parseConfig(loc, gopts, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -454,7 +620,7 @@ func create(ctx context.Context, s string, gopts GlobalOptions, opts options.Opt
 		return nil, err
 	}
 
-	cfg, err := parseConfig(loc, opts)
+	cfg, err := parseConfig(loc, gopts, opts)
 	if err != nil {
 		return nil, err
 	}

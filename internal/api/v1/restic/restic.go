@@ -1,6 +1,7 @@
 package restic
 
 import (
+	"fmt"
 	"github.com/fanjindong/go-cache"
 	"github.com/kataras/iris/v12"
 	"github.com/kataras/iris/v12/context"
@@ -116,11 +117,13 @@ func snapshotsHandler() iris.Handler {
 				return
 			}
 		}
+		groupBy, err := SplitSnapshotGroupBy(groupby)
 		opts := resticProxy.SnapshotOptions{
-			GroupBy: groupby,
-			Hosts:   hosts,
-			Paths:   paths,
-			Tags:    tags,
+			SnapshotFilter: restic.SnapshotFilter{Hosts: hosts, Paths: paths, Tags: tags},
+			Compact:        false,
+			Last:           false,
+			Latest:         0,
+			GroupBy:        groupBy,
 		}
 		var snapshotids []string
 		if snapshotid != "" {
@@ -344,4 +347,22 @@ func Install(parent iris.Party) {
 	sp.Post("/:repository/rebuild-index", rebuildIndexHandler())
 	sp.Post("/:repository/prune", pruneHandler())
 	sp.Post("/:repository/forget", forgetHandler())
+}
+
+func SplitSnapshotGroupBy(s string) (restic.SnapshotGroupByOptions, error) {
+	var l restic.SnapshotGroupByOptions
+	for _, option := range strings.Split(s, ",") {
+		switch option {
+		case "host", "hosts":
+			l.Host = true
+		case "path", "paths":
+			l.Path = true
+		case "tag", "tags":
+			l.Tag = true
+		case "":
+		default:
+			return restic.SnapshotGroupByOptions{}, fmt.Errorf("unknown grouping option: %q", option)
+		}
+	}
+	return l, nil
 }

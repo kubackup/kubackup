@@ -8,6 +8,7 @@ import (
 	"github.com/kubackup/kubackup/internal/service/v1/common"
 	policyDao "github.com/kubackup/kubackup/internal/service/v1/policy"
 	repositoryDao "github.com/kubackup/kubackup/internal/service/v1/repository"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
 	"github.com/kubackup/kubackup/pkg/utils"
 	resticProxy "github.com/kubackup/kubackup/restic_proxy"
 )
@@ -121,8 +122,8 @@ func doHanlder() iris.Handler {
 			return
 		}
 		opt := resticProxy.ForgetOptions{
-			Prune: true,
-			Paths: []string{policy.Path},
+			Prune:          true,
+			SnapshotFilter: restic.SnapshotFilter{Paths: []string{policy.Path}},
 		}
 		setType(policy.Type, policy.Value, &opt)
 		operid, err := resticProxy.RunForget(opt, policy.RepositoryId, []string{})
@@ -161,8 +162,8 @@ func DoPolicy() {
 		}
 		for i, policy := range policys {
 			opt := resticProxy.ForgetOptions{
-				Prune: i == (len(policys) - 1),
-				Paths: []string{policy.Path},
+				Prune:          i == (len(policys) - 1),
+				SnapshotFilter: restic.SnapshotFilter{Paths: []string{policy.Path}},
 			}
 			setType(policy.Type, policy.Value, &opt)
 			err = resticProxy.RunForgetSync(opt, policy.RepositoryId, []string{})
@@ -175,24 +176,25 @@ func DoPolicy() {
 }
 
 func setType(t string, value int, opt *resticProxy.ForgetOptions) {
+	v := resticProxy.ForgetPolicyCount(value)
 	switch t {
 	case "last":
-		opt.Last = value
+		opt.Last = v
 		break
 	case "hourly":
-		opt.Hourly = value
+		opt.Hourly = v
 		break
 	case "daily":
-		opt.Daily = value
+		opt.Daily = v
 		break
 	case "weekly":
-		opt.Weekly = value
+		opt.Weekly = v
 		break
 	case "monthly":
-		opt.Monthly = value
+		opt.Monthly = v
 		break
 	case "yearly":
-		opt.Yearly = value
+		opt.Yearly = v
 		break
 	}
 }

@@ -9,7 +9,6 @@ import (
 	"github.com/kataras/iris/v12"
 	"github.com/kataras/iris/v12/context"
 	"github.com/kataras/iris/v12/middleware/pprof"
-	"github.com/kataras/iris/v12/view"
 	cf "github.com/kubackup/kubackup/internal/config"
 	"github.com/kubackup/kubackup/internal/consts/system_status"
 	"github.com/kubackup/kubackup/internal/entity/v1/config"
@@ -83,7 +82,6 @@ func (e *BackupServer) setUpStaticFile() {
 	party := e.rootRoute.Party("/")
 	party.Use(iris.Compression)
 	dashboardFS := iris.PrefixDir("web/dashboard", http.FS(EmbedWebDashboard))
-	party.RegisterView(view.HTML(dashboardFS, ".html"))
 	party.HandleDir("/", dashboardFS, spaOption)
 }
 

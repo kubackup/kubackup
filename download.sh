@@ -11,7 +11,6 @@ tar -zxvf restic.tar.gz
 cp -rp restic-"${version}"/internal pkg/restic_source/rinternal
 cp -rp restic-"${version}"/LICENSE pkg/restic_source/
 cp -rp restic-"${version}"/VERSION pkg/restic_source/
-cp -rp restic-"${version}"/go.mod ./
 rm -rf restic.tar.gz
 rm -rf restic-"${version}"
 
@@ -19,12 +18,10 @@ if [[ "$OSTYPE" =~ ^linux ]]; then
 	# linux
 	# shellcheck disable=SC2046
 	sed -i "s/\"github.com\/restic\/restic\/internal/\"github.com\/kubackup\/kubackup\/pkg\/restic_source\/rinternal/g" $(grep -rl "\"github.com\/restic\/restic\/internal" pkg/restic_source/rinternal)
-	sed -i "s/github.com\/restic\/restic/github.com\/kubackup\/kubackup/g" go.mod
 elif [[ "$OSTYPE" =~ ^darwin ]]; then
 	# darwin
 	# shellcheck disable=SC2046
 	sed -i '' "s/\"github.com\/restic\/restic\/internal/\"github.com\/kubackup\/kubackup\/pkg\/restic_source\/rinternal/g" $(grep -rl "\"github.com\/restic\/restic\/internal" pkg/restic_source/rinternal)
-	sed -i '' "s/github.com\/restic\/restic/github.com\/kubackup\/kubackup/g" go.mod
 else
 	echo "Unsupported OS: $OSTYPE"
 	exit 1

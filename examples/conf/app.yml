@@ -2,7 +2,7 @@ server:
   name: kubackup
   bind:
     # 监听地址，默认0.0.0.0
-    host: ""
+    host: "0.0.0.0"
     # 监听端口
     port: 8012
   debug: false
@@ -10,12 +10,12 @@ data:
   # 是否启用缓存
   noCache: false
   # 本地缓存目录
-  cacheDir: /root/.kubackup/cache
+  cacheDir: /Users/tanyi/Documents/gocode/kubackup_open/examples/cache
   # 数据库目录
-  dbDir: /root/.kubackup/db
+  dbDir: /Users/tanyi/Documents/gocode/kubackup_open/examples/db
 logger:
   level: info
-  logPath: /root/.kubackup/log
+  logPath: /Users/tanyi/Documents/gocode/kubackup_open/examples/log
 jwt:
   # jwt密钥，请自行修改
   key: dowell

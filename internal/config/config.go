@@ -61,8 +61,12 @@ func ReadConfig(path string) (c *config.Config, err error) {
 			fmt.Println(fmt.Errorf("读取配置文件%s失败：%s", path, err.Error()))
 			return nil, err
 		}
-		c.Logger.LogPath = pathu.Join(path, string(filepath.Separator), "log")
-		c.Data.DbDir = pathu.Join(path, string(filepath.Separator), "db")
+		if c.Logger.LogPath == "" {
+			c.Logger.LogPath = pathu.Join(path, string(filepath.Separator), "log")
+		}
+		if c.Data.DbDir == "" {
+			c.Data.DbDir = pathu.Join(path, string(filepath.Separator), "db")
+		}
 		if "" == c.Data.CacheDir {
 			c.Data.CacheDir = pathu.Join(path, string(filepath.Separator), "cache")
 		}
