@@ -133,7 +133,7 @@
         <el-form-item v-if="dialogStatus === 'create'" label="确认密码" prop="confirmPassword">
           <el-input v-model="temp.confirmPassword" show-password clearable type="password"/>
         </el-form-item>
-        <el-form-item label="压缩模式" prop="type">
+        <el-form-item v-if="dialogStatus === 'create'" label="压缩模式" prop="type">
           <el-select v-model="temp.compression" placeholder="请选择">
             <el-option v-for="item in compressionList" :key="item.code" :label="item.name" :value="item.code"/>
           </el-select>

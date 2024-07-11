@@ -18,11 +18,12 @@ import (
 
 type TaskProgress struct {
 	*ui.StdioWrapper
-	task        wsTaskInfo.WsTaskInfo
-	weightCount float64 //数量进度权重
-	weightSize  float64 //大小进度权重
-	lastUpdate  time.Time
-	errors      []model.ErrorUpdate
+	task           wsTaskInfo.WsTaskInfo
+	weightCount    float64 //数量进度权重
+	weightSize     float64 //大小进度权重
+	lastUpdate     time.Time
+	errors         []model.ErrorUpdate
+	minUpdatePause time.Duration
 }
 
 func (t *TaskProgress) E(msg string, args ...interface{}) {
@@ -35,31 +36,28 @@ func (t *TaskProgress) E(msg string, args ...interface{}) {
 	if len(t.errors) > 20 {
 		return
 	}
-	t.print(errorUpdate)
+	t.print(errorUpdate, true)
 	t.errors = append(t.errors, errorUpdate)
 	_ = taskHistoryService.UpdateField(t.task.GetId(), "ArchivalError", t.errors, common.DBOptions{})
 }
 
 func (t *TaskProgress) P(msg string, args ...interface{}) {
-	t.print(msg)
+	t.print(msg, true)
 }
 
 func (t *TaskProgress) V(msg string, args ...interface{}) {
-	t.print(msg)
-}
-
-func (t *TaskProgress) VV(msg string, args ...interface{}) {
-	t.print(msg)
+	t.print(msg, true)
 }
 
 var _ backup.ProgressPrinter = &TaskProgress{}
 
-func NewTaskProgress(task wsTaskInfo.WsTaskInfo) *TaskProgress {
+func NewTaskProgress(task wsTaskInfo.WsTaskInfo, minUpdatePause time.Duration) *TaskProgress {
 	return &TaskProgress{
-		task:        task,
-		errors:      make([]model.ErrorUpdate, 0),
-		weightCount: 1,
-		weightSize:  1,
+		task:           task,
+		errors:         make([]model.ErrorUpdate, 0),
+		weightCount:    1,
+		weightSize:     1,
+		minUpdatePause: minUpdatePause,
 	}
 }
 
@@ -71,7 +69,11 @@ func (t *TaskProgress) SetWeight(weightCount, weightSize float64) {
 	t.weightCount = weightCount
 }
 
-func (t *TaskProgress) print(status interface{}) {
+func (t *TaskProgress) print(status interface{}, forceUpdate bool) {
+	// limit update frequency
+	if !forceUpdate && (time.Since(t.lastUpdate) < t.minUpdatePause || t.minUpdatePause == 0) {
+		return
+	}
 	t.lastUpdate = time.Now()
 	t.task.SendMsg(status)
 }
@@ -108,7 +110,8 @@ func (t *TaskProgress) Update(total, processed backup.Counter, errors uint, curr
 	sort.Strings(status.CurrentFiles)
 	t.task.(*task.TaskInfo).Progress = &status
 	task.TaskInfos.Set(t.task.GetId(), t.task)
-	t.print(&status)
+	// 发送频率由reporter控制，这里不做控制
+	t.print(&status, true)
 }
 
 func (t *TaskProgress) ScannerError(item string, err error) error {
@@ -118,7 +121,7 @@ func (t *TaskProgress) ScannerError(item string, err error) error {
 		During:      "scan",
 		Item:        item,
 	}
-	t.print(errorUpdate)
+	t.print(errorUpdate, true)
 	err1 := taskHistoryService.UpdateField(t.task.GetId(), "ScannerError", errorUpdate, common.DBOptions{})
 	if err1 != nil {
 		return err1
@@ -136,7 +139,7 @@ func (t *TaskProgress) Error(item string, err error) error {
 	if len(t.errors) > 20 {
 		return err
 	}
-	t.print(&errorUpdate)
+	t.print(&errorUpdate, true)
 	t.errors = append(t.errors, errorUpdate)
 	err1 := taskHistoryService.UpdateField(t.task.GetId(), "ArchivalError", t.errors, common.DBOptions{})
 	if err1 != nil {
@@ -195,7 +198,7 @@ func (t *TaskProgress) CompleteItem(messageType string, item string, s archiver.
 			DataSize:    utils.FormatBytes(s.DataSize),
 		}
 	}
-	t.print(&status)
+	t.print(&status, false)
 }
 
 func (t *TaskProgress) ReportTotal(start time.Time, s archiver.ScanStats) {
@@ -206,7 +209,7 @@ func (t *TaskProgress) ReportTotal(start time.Time, s archiver.ScanStats) {
 		DataSize:    utils.FormatBytes(s.Bytes),
 		TotalFiles:  s.Files,
 	}
-	t.print(ver)
+	t.print(ver, true)
 	err := taskHistoryService.UpdateField(t.task.GetId(), "Scanner", ver, common.DBOptions{})
 	if err != nil {
 		return
@@ -233,7 +236,7 @@ func (t *TaskProgress) Finish(snapshotID restic.ID, start time.Time, summary *ba
 			SnapshotID:          snapshotID.Str(),
 			DryRun:              dryRun,
 		}
-		t.print(summaryOut)
+		t.print(summaryOut, true)
 		p1 = t.task.(*task.TaskInfo).Progress
 		if p1 != nil {
 			p1.BytesDone = p1.TotalBytes
@@ -241,7 +244,7 @@ func (t *TaskProgress) Finish(snapshotID restic.ID, start time.Time, summary *ba
 			p1.FilesDone = p1.TotalFiles
 			p1.SecondsRemaining = "0"
 			p1.SecondsElapsed = summaryOut.TotalDuration
-			t.print(p1)
+			t.print(p1, true)
 		}
 	}
 	taskhis, err3 := taskHistoryService.Get(t.task.GetId(), common.DBOptions{})

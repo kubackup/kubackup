@@ -128,7 +128,7 @@
         </el-form-item>
         <el-form-item label="读取并发数量" prop="ReadConcurrency">
           <el-input v-model="temp.readConcurrency" clearable>
-            <template slot="append">不填默认为cpu线程数</template>
+            <template slot="append">默认2</template>
           </el-input>
         </el-form-item>
 
@@ -261,7 +261,7 @@ export default {
         status: 2,
         immediate: false,
         execTimeCron: '',
-        readConcurrency: 0
+        readConcurrency: 2
       },
       rules: {
         name: [{required: true, message: '该项为必填项', trigger: 'blur'}],
@@ -438,7 +438,7 @@ export default {
           }
           this.buttonLoading = true
           if (this.temp.readConcurrency === '') {
-            this.temp.readConcurrency = 0
+            this.temp.readConcurrency = 2
           } else {
             this.temp.readConcurrency = Number(this.temp.readConcurrency)
           }
@@ -462,7 +462,7 @@ export default {
           }
           this.buttonLoading = true
           if (this.temp.readConcurrency === '') {
-            this.temp.readConcurrency = 0
+            this.temp.readConcurrency = 2
           } else {
             this.temp.readConcurrency = Number(this.temp.readConcurrency)
           }

@@ -305,6 +305,26 @@ func pruneHandler() iris.Handler {
 		ctx.Values().Set("data", id)
 	}
 }
+func migrateHandler() iris.Handler {
+	return func(ctx *context.Context) {
+		repository, err := ctx.Params().GetInt("repository")
+		if err != nil {
+			utils.Errore(ctx, err)
+			return
+		}
+		force := ctx.Params().GetBoolDefault("force", false)
+		action := ctx.Params().GetStringDefault("action", "upgrade_repo_v2")
+		opt := resticProxy.MigrateOptions{
+			Force: force,
+		}
+		id, err := resticProxy.RunMigrate(opt, repository, action)
+		if err != nil {
+			utils.Errore(ctx, err)
+			return
+		}
+		ctx.Values().Set("data", id)
+	}
+}
 
 func forgetHandler() iris.Handler {
 	return func(ctx *context.Context) {
@@ -347,6 +367,7 @@ func Install(parent iris.Party) {
 	sp.Post("/:repository/rebuild-index", rebuildIndexHandler())
 	sp.Post("/:repository/prune", pruneHandler())
 	sp.Post("/:repository/forget", forgetHandler())
+	sp.Post("/:repository/migrate", migrateHandler())
 }
 
 func SplitSnapshotGroupBy(s string) (restic.SnapshotGroupByOptions, error) {

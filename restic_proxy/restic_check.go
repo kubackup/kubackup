@@ -37,6 +37,7 @@ type CheckOptions struct {
 	ReadDataSubset string //read a `subset` of data packs, specified as 'n/t' for specific subset or either 'x%' or 'x.y%' for random subset
 	CheckUnused    bool   //find unused blobs
 	WithCache      bool   //use the cache
+	NoLock         bool
 }
 
 func checkFlags(opts CheckOptions) error {
@@ -166,14 +167,16 @@ func RunCheck(opts CheckOptions, repoid int) (int, error) {
 		cancel()
 	})
 	repo := repoHandler.repo
-	lock, err := lockRepoExclusive(ctx, repo)
-	if err != nil {
-		clean.Cleanup()
-		return 0, err
+	if !opts.NoLock {
+		lock, err := lockRepoExclusive(ctx, repo)
+		if err != nil {
+			clean.Cleanup()
+			return 0, err
+		}
+		clean.AddCleanCtx(func() {
+			unlockRepo(lock)
+		})
 	}
-	clean.AddCleanCtx(func() {
-		unlockRepo(lock)
-	})
 	status := repoModel.StatusNone
 	oper := operationModel.Operation{
 		RepositoryId: repoid,
@@ -451,18 +454,18 @@ func selectRandomPacksByPercentage(allPacks map[restic.ID]int64, percentage floa
 }
 
 // CheckRepoStatus 检测仓库状态
-func CheckRepoStatus(repoid int) bool {
+func CheckRepoStatus(repoid int) *restic.Config {
 	repoHandler, err := GetRepository(repoid)
 	if err != nil {
-		return false
+		return nil
 	}
 	gopts := repoHandler.gopts
 	repo := repoHandler.repo
-	_, err = restic.LoadConfig(gopts.ctx, repo)
+	conf, err := restic.LoadConfig(gopts.ctx, repo)
 	if err != nil {
-		return false
+		return nil
 	}
-	return true
+	return &conf
 }
 
 // GetAllRepoWithStatus 获取仓库列表并带状态信息
@@ -486,9 +489,10 @@ func GetAllRepoWithStatus(repotype int, name string) ([]repoModel.Repository, er
 					return nil
 				case v = <-ch:
 				}
-				res := CheckRepoStatus(v.Id)
-				if res {
+				config := CheckRepoStatus(v.Id)
+				if config != nil {
 					v.Status = repoModel.StatusRun
+					v.RepositoryVersion = strconv.Itoa(int(config.Version))
 				} else {
 					v.Status = repoModel.StatusErr
 					v.Errmsg = "仓库连接超时"

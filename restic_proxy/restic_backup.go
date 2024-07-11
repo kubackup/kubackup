@@ -13,7 +13,6 @@ import (
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/repository"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/ui/backup"
-	"github.com/kubackup/kubackup/pkg/utils"
 	"gopkg.in/tomb.v2"
 	"os"
 	"runtime"
@@ -47,7 +46,6 @@ type BackupOptions struct {
 	UseFsSnapshot     bool
 	DryRun            bool
 	ReadConcurrency   uint //读取并发数量，默认2
-	NoScan            bool
 }
 
 func RunBackup(opts BackupOptions, repoid int, taskinfo task.TaskInfo) error {
@@ -57,13 +55,6 @@ func RunBackup(opts BackupOptions, repoid int, taskinfo task.TaskInfo) error {
 			return fmt.Errorf("os.Hostname() returned err: %v", err)
 		}
 		opts.Host = hostname
-	}
-	if opts.ReadConcurrency == 0 {
-		cpu := utils.GetCpuThreads()
-		if cpu == 0 {
-			cpu = 2
-		}
-		opts.ReadConcurrency = uint(cpu)
 	}
 	repoHandler, err := GetRepository(repoid)
 	if err != nil {
@@ -81,7 +72,7 @@ func RunBackup(opts BackupOptions, repoid int, taskinfo task.TaskInfo) error {
 	timeStamp := time.Now()
 
 	var t tomb.Tomb
-	progressPrinter := NewTaskProgress(&taskinfo)
+	progressPrinter := NewTaskProgress(&taskinfo, time.Second)
 	progressReporter := backup.NewProgress(progressPrinter, time.Second)
 	clean.AddCleanCtx(func() {
 		progressReporter.Done()
@@ -102,7 +93,7 @@ func RunBackup(opts BackupOptions, repoid int, taskinfo task.TaskInfo) error {
 		clean.Cleanup()
 		return err
 	}
-	rejectFuncs, err := collectRejectFuncs(opts, repo, targets)
+	rejectFuncs, err := collectRejectFuncs(opts, targets)
 	if err != nil {
 		clean.Cleanup()
 		return err
@@ -163,7 +154,9 @@ func RunBackup(opts BackupOptions, repoid int, taskinfo task.TaskInfo) error {
 
 	t.Go(func() error { return sc.Scan(t.Context(ctx), targets) })
 
-	arch := archiver.New(repo, targetFS, archiver.Options{ReadConcurrency: opts.ReadConcurrency})
+	arch := archiver.New(repo, targetFS, archiver.Options{
+		ReadConcurrency: opts.ReadConcurrency,
+	})
 	arch.SelectByName = selectByNameFilter
 	arch.Select = selectFilter
 	arch.WithAtime = opts.WithAtime
@@ -264,7 +257,7 @@ func findParentSnapshot(ctx context.Context, repo restic.Repository, opts Backup
 	}
 	return sn, err
 }
-func collectRejectFuncs(opts BackupOptions, repo *repository.Repository, targets []string) (fs []RejectFunc, err error) {
+func collectRejectFuncs(opts BackupOptions, targets []string) (fs []RejectFunc, err error) {
 	// allowed devices
 	if opts.ExcludeOtherFS {
 		f, err := rejectByDevice(targets)

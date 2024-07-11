@@ -1,10 +1,12 @@
 package system
 
 import (
+	"encoding/json"
 	"github.com/kataras/iris/v12"
 	"github.com/kataras/iris/v12/context"
 	"github.com/kubackup/kubackup"
 	"github.com/kubackup/kubackup/internal/consts/global"
+	sys "github.com/kubackup/kubackup/internal/entity/v1/system"
 	"github.com/kubackup/kubackup/internal/service/v1/system"
 	fileutil "github.com/kubackup/kubackup/pkg/file"
 	"github.com/kubackup/kubackup/pkg/utils"
@@ -44,11 +46,21 @@ func versionHandler() iris.Handler {
 
 func latestVersionHandler() iris.Handler {
 	return func(ctx *context.Context) {
-		latest, err := http.Get(global.LatestUrl)
+		body, err := http.Get(global.LatestUrl)
 		if err != nil {
 			utils.Errore(ctx, err)
 			return
 		}
+		var releases []sys.Release
+		err = json.Unmarshal([]byte(body), &releases)
+		if err != nil {
+			utils.Errore(ctx, err)
+			return
+		}
+		if len(releases) == 0 {
+			utils.ErrorStr(ctx, "新版本获取失败")
+		}
+		latest := releases[0].TagName
 		ctx.Values().Set("data", latest)
 	}
 }

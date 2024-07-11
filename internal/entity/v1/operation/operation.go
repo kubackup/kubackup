@@ -19,4 +19,5 @@ const (
 	REBUILDINDEX_TYPE = 2 // REBUILDINDEX 重建索引
 	PRUNE_TYPE        = 3 // PRUNE 清理无用数据
 	FORGET_TYPE       = 4 // FORGET 清理过期快照
+	MIGRATE_TYPE      = 5 //MIGRATE
 )

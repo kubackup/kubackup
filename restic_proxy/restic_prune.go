@@ -145,6 +145,9 @@ func verifyPruneOptions(opts *PruneOptions) error {
 
 func RunPrune(opts PruneOptions, repoid int) (int, error) {
 	repoHandler, err := GetRepository(repoid)
+	if repoHandler.gopts.Compression != 1 {
+		opts.RepackUncompressed = true
+	}
 	if err != nil {
 		return 0, err
 	}

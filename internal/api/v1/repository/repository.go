@@ -30,7 +30,7 @@ func createHandler() iris.Handler {
 			return
 		}
 		option, _ := resticProxy.GetGlobalOptions(rep)
-		_, err1 := resticProxy.OpenRepository(ctx, option)
+		repo, err1 := resticProxy.OpenRepository(ctx, option)
 		if err1 != nil {
 			//仓库异常，重新初始化
 			version, err := resticProxy.RunInit(ctx, option)
@@ -40,6 +40,7 @@ func createHandler() iris.Handler {
 			}
 			rep.RepositoryVersion = strconv.Itoa(int(version))
 		}
+		rep.RepositoryVersion = strconv.Itoa(int(repo.Config().Version))
 		rep.Status = repository.StatusNone
 		err = repositoryService.Create(&rep, common.DBOptions{})
 		if err != nil {
@@ -120,7 +121,6 @@ func updateHandler() iris.Handler {
 		if rep.Endpoint != "" {
 			rep2.Endpoint = rep.Endpoint
 		}
-		rep2.Compression = rep.Compression
 		rep2.PackSize = rep.PackSize
 		option, _ := resticProxy.GetGlobalOptions(*rep2)
 		_, err = resticProxy.OpenRepository(ctx, option)
@@ -151,9 +151,10 @@ func getHandler() iris.Handler {
 			utils.Errore(ctx, err)
 			return
 		}
-		res := resticProxy.CheckRepoStatus(resp.Id)
-		if res {
+		config := resticProxy.CheckRepoStatus(resp.Id)
+		if config != nil {
 			resp.Status = repository.StatusRun
+			resp.RepositoryVersion = strconv.Itoa(int(config.Version))
 		} else {
 			resp.Status = repository.StatusErr
 			resp.Errmsg = "仓库连接超时"

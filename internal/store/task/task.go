@@ -50,7 +50,7 @@ func (ti *TaskInfo) SetSockJSSession(s sockjs.Session) {
 	ti.sockJSSession = s
 }
 func (ti *TaskInfo) SendMsg(msg interface{}) {
-	if ti.sockJSSession != nil && ti.sockJSSession.ID() != "" && msg != "" {
+	if ti.sockJSSession != nil && ti.sockJSSession.ID() != "" && msg != nil {
 		go func() {
 			err := ti.sockJSSession.Send(utils.ToJSONString(msg))
 			if err != nil {

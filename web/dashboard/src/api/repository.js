@@ -105,6 +105,13 @@ export function fetchPrune(repo) {
   })
 }
 
+export function fetchMigrate(repo) {
+  return request({
+    url: `/restic/${repo}/migrate`,
+    method: 'post'
+  })
+}
+
 /**
  * 删除快照
  * @param repo
