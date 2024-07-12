@@ -11,6 +11,7 @@
   <a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank"><img src="https://shields.io/github/license/kubackup/kubackup?color=%231890FF" alt="License: GPL v3"></a>
   <a href="https://github.com/kubackup/kubackup/releases"><img src="https://img.shields.io/github/v/release/kubackup/kubackup" alt="GitHub release"></a>
   <a href="https://app.codacy.com/gh/kubackup/kubackup/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade"><img src="https://app.codacy.com/project/badge/Grade/8e1a63fabe8b441cb31d5a70bd0291be" alt="Codacy"/></a>
+  <a target="_blank" href="https://github.com/restic/restic/tree/v0.16.5"><img src="https://img.shields.io/badge/resitc-v0.16.5-red" alt="codacy"/></a>
 </p>
 
 [中文](README.md)
