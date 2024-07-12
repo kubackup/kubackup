@@ -18,6 +18,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"io"
+	iofs "io/fs"
 	"net/http"
 	"os"
 	"path"
@@ -81,8 +82,11 @@ func (e *BackupServer) setUpStaticFile() {
 	spaOption := iris.DirOptions{SPA: true, IndexName: "index.html"}
 	party := e.rootRoute.Party("/")
 	party.Use(iris.Compression)
-	dashboardFS := iris.PrefixDir("web/dashboard", http.FS(EmbedWebDashboard))
-	party.HandleDir("/", dashboardFS, spaOption)
+	fsys, err := iofs.Sub(EmbedWebDashboard, "web/dashboard")
+	if err != nil {
+		panic(err)
+	}
+	party.HandleDir("/", http.FS(fsys), spaOption)
 }
 
 func (e *BackupServer) setStop() {
