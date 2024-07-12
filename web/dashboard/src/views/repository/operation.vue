@@ -55,6 +55,11 @@
                 <el-button type="text" @click="pruneHandler()">重新执行</el-button>
               </div>
             </el-form-item>
+            <el-form-item label="清除锁:">
+              <div class="form-btn">
+                <el-button type="text" @click="unlockHandler()">执行</el-button>
+              </div>
+            </el-form-item>
           </el-form>
         </el-col>
         <el-col :xs="18" :sm="18" :lg="18" class="card-panel-col">
@@ -85,7 +90,15 @@
 </template>
 
 <script>
-import {fetchCheck, fetchGet, fetchLastOper, fetchMigrate, fetchPrune, fetchRebuildIndex} from '@/api/repository'
+import {
+  fetchCheck,
+  fetchGet,
+  fetchLastOper,
+  fetchMigrate,
+  fetchPrune,
+  fetchRebuildIndex,
+  fetchUnlock
+} from '@/api/repository'
 import Terminal from '@/components/TermLog'
 import {dateFormat} from "@/utils";
 import SockJS from 'sockjs-client'
@@ -183,6 +196,11 @@ export default {
         this.openSockjs(res.data)
       }).finally(() => {
         this.activeName = '3'
+      })
+    },
+    unlockHandler() {
+      fetchUnlock(this.listQuery.id).then(res => {
+        this.$notify.success('成功清理' + res.data + '个锁')
       })
     },
     getLastOper(type) {

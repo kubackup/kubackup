@@ -43,7 +43,7 @@ func lockRepository(ctx context.Context, repo *repository.Repository, exclusive 
 
 	lock, err := lockFn(ctx, repo)
 	if err != nil {
-		return nil, errors.WithMessage(err, "unable to create lock in backend")
+		return nil, errors.WithMessage(err, "仓库当前已被锁定，请等待其他操作完成，若确定无其他任务，可手动执行清除锁，锁信息：")
 	}
 	debug.Log("create lock %p (exclusive %v)", lock, exclusive)
 
@@ -119,6 +119,25 @@ func unlockRepo(lock *restic.Lock) {
 	}
 
 	debug.Log("unable to find lock %v in the global list of locks, ignoring", lock)
+}
+
+func UnlockRepoById(repoid int, removeAll bool) (uint, error) {
+	repoHandler, err := GetRepository(repoid)
+	if err != nil {
+		return 0, err
+	}
+	repo := repoHandler.repo
+
+	fn := restic.RemoveStaleLocks
+	if removeAll {
+		fn = restic.RemoveAllLocks
+	}
+
+	locks, err := fn(repoHandler.gopts.ctx, repo)
+	if err != nil {
+		return 0, err
+	}
+	return locks, nil
 }
 
 func unlockAll() error {

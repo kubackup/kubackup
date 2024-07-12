@@ -117,22 +117,10 @@ func RunRestore(opts RestoreOptions, repoid int, snapshotid string) error {
 	if err != nil {
 		return err
 	}
-	start := time.Now()
-	// 获取数据总数
-	t.Go(func() error {
-		stats, err := getStatsForSnapshots(ctx, repo, sn)
-		if err != nil {
-			return printer.ScannerError(err)
-		}
-		printer.ReportTotal(start, stats.TotalSize, stats.TotalFileCount)
-		return nil
-	})
 
 	res := restorer.NewRestorer(repo, sn, opts.Sparse, progressReporter)
 
-	res.Error = func(location string, err error) error {
-		return printer.Error(location, err)
-	}
+	res.Error = printer.Error
 
 	excludePatterns := filter.ParsePatterns(opts.Exclude)
 	insensitiveExcludePatterns := filter.ParsePatterns(opts.InsensitiveExclude)
@@ -254,23 +242,4 @@ func createRestoreTask(target string, repository int) (*thmodel.Task, error) {
 		return nil, err
 	}
 	return t, nil
-}
-
-func getStatsForSnapshots(ctx context.Context, repo restic.Repository, sn *restic.Snapshot) (*StatsContainer, error) {
-	opt := StatsOptions{
-		countMode: countModeRestoreSize,
-	}
-	stats := &StatsContainer{
-		uniqueFiles:    make(map[fileID]struct{}),
-		uniqueInodes:   make(map[uint64]struct{}),
-		fileBlobs:      make(map[string]restic.IDSet),
-		blobs:          restic.NewBlobSet(),
-		snapshotsCount: 0,
-	}
-
-	err := statsWalkSnapshot(opt, ctx, sn, repo, stats)
-	if err != nil {
-		return nil, err
-	}
-	return stats, nil
 }

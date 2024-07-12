@@ -218,39 +218,6 @@ func loadIndexHandler() iris.Handler {
 
 }
 
-func dumpHandler() iris.Handler {
-	return func(ctx *context.Context) {
-		snapshotid := ctx.Params().Get("snapshotid")
-		repository, err := ctx.Params().GetInt("repository")
-		if err != nil {
-			utils.Errore(ctx, err)
-			return
-		}
-		var dump model.DumpInfo
-		err = ctx.ReadJSON(&dump)
-		if err != nil {
-			utils.Errore(ctx, err)
-			return
-		}
-		if dump.Mode == 0 {
-			dump.Mode = 0755
-		}
-		if dump.Filename == "" {
-			utils.ErrorStr(ctx, "文件名不能为空")
-			return
-		}
-		opt := resticProxy.DumpOptions{
-			Archive: "zip",
-		}
-		err = resticProxy.RunDump(opt, repository, snapshotid, dump)
-		if err != nil {
-			utils.Errore(ctx, err)
-			return
-		}
-		ctx.Values().Set("data", "")
-	}
-}
-
 func checkHandler() iris.Handler {
 	return func(ctx *context.Context) {
 		repository, err := ctx.Params().GetInt("repository")
@@ -326,6 +293,23 @@ func migrateHandler() iris.Handler {
 	}
 }
 
+func unlockHandler() iris.Handler {
+	return func(ctx *context.Context) {
+		repository, err := ctx.Params().GetInt("repository")
+		if err != nil {
+			utils.Errore(ctx, err)
+			return
+		}
+		all := ctx.URLParam("all") == "true"
+		locks, err := resticProxy.UnlockRepoById(repository, all)
+		if err != nil {
+			utils.Errore(ctx, err)
+			return
+		}
+		ctx.Values().Set("data", locks)
+	}
+}
+
 func forgetHandler() iris.Handler {
 	return func(ctx *context.Context) {
 		repository, err := ctx.Params().GetInt("repository")
@@ -343,6 +327,9 @@ func forgetHandler() iris.Handler {
 		}
 		id, err := resticProxy.RunForget(opt, repository, snapshotids)
 		if err != nil {
+			if restic.IsAlreadyLocked(err) {
+
+			}
 			utils.Errore(ctx, err)
 			return
 		}
@@ -361,13 +348,13 @@ func Install(parent iris.Party) {
 	sp.Get("/:repository/snapshots", snapshotsHandler())
 	sp.Get("/:repository/parms", parmsHandler())
 	sp.Get("/:repository/parmsForMy", parmsMyHandler())
-	sp.Post("/:repository/dump/:snapshotid", dumpHandler())
 	sp.Get("/:repository/loadIndex", loadIndexHandler())
 	sp.Post("/:repository/check", checkHandler())
 	sp.Post("/:repository/rebuild-index", rebuildIndexHandler())
 	sp.Post("/:repository/prune", pruneHandler())
 	sp.Post("/:repository/forget", forgetHandler())
 	sp.Post("/:repository/migrate", migrateHandler())
+	sp.Post("/:repository/unlock", unlockHandler())
 }
 
 func SplitSnapshotGroupBy(s string) (restic.SnapshotGroupByOptions, error) {

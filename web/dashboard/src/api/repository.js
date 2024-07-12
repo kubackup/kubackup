@@ -76,14 +76,6 @@ export function fetchParmsMyList(id) {
   })
 }
 
-export function fetchDumpFile(repo, snap, data) {
-  return request({
-    url: `/restic/${repo}/dump/${snap}`,
-    method: 'post',
-    data
-  })
-}
-
 export function fetchCheck(repo) {
   return request({
     url: `/restic/${repo}/check`,
@@ -105,6 +97,11 @@ export function fetchPrune(repo) {
   })
 }
 
+/**
+ * 升级数据格式版本
+ * @param repo
+ * @returns {*}
+ */
 export function fetchMigrate(repo) {
   return request({
     url: `/restic/${repo}/migrate`,
@@ -124,6 +121,22 @@ export function fetchForget(repo, snapshotid) {
     method: 'post',
     params: {
       snapshotid: snapshotid
+    }
+  })
+}
+
+/**
+ * 解锁
+ * @param repo
+ * @param all
+ * @returns {AxiosPromise}
+ */
+export function fetchUnlock(repo, all) {
+  return request({
+    url: `/restic/${repo}/unlock`,
+    method: 'post',
+    params: {
+      all: all
     }
   })
 }

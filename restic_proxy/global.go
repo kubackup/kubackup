@@ -239,6 +239,7 @@ func InitRepository() {
 			cancel:   cancel,
 			gopts:    option,
 		}
+		_, _ = restic.RemoveAllLocks(ctx, openRepository)
 		err = openRepository.LoadIndex(option.ctx, nil)
 		if err != nil {
 			fmt.Printf("仓库%s加载索引失败：%v\n", rep.Name, err)

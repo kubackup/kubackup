@@ -13,24 +13,34 @@ import (
 )
 
 type restorePrinter struct {
-	task        wsTaskInfo.WsTaskInfo
-	weightCount float64 //数量进度权重
-	weightSize  float64 //大小进度权重
-	lastUpdate  time.Time
-	errors      []model.ErrorUpdate
+	task          wsTaskInfo.WsTaskInfo
+	weightCount   float64 //数量进度权重
+	weightSize    float64 //大小进度权重
+	lastUpdate    time.Time
+	errors        []model.ErrorUpdate
+	filesTotal    uint64
+	allBytesTotal uint64
 }
 
 func NewRestorePrinter(t wsTaskInfo.WsTaskInfo) *restorePrinter {
 	return &restorePrinter{
-		task:        t,
-		weightCount: 1,
-		weightSize:  1,
+		task:          t,
+		weightCount:   1,
+		weightSize:    1,
+		filesTotal:    0,
+		allBytesTotal: 0,
 	}
 }
 
 var _ restore.ProgressPrinter = &restorePrinter{}
 
 func (r *restorePrinter) Update(filesFinished, filesTotal, allBytesWritten, allBytesTotal uint64, duration time.Duration) {
+	if r.filesTotal != filesTotal || r.allBytesTotal != allBytesTotal {
+		r.ReportTotal(duration, allBytesTotal, filesTotal)
+	}
+	r.filesTotal = filesTotal
+	r.allBytesTotal = allBytesTotal
+
 	// 预计剩余时间
 	todo := float64(allBytesTotal - allBytesWritten)
 	secs := uint64(float64(duration/time.Second) / float64(allBytesWritten) * todo)
@@ -145,11 +155,11 @@ func (r *restorePrinter) ScannerError(err error) error {
 	}
 	return nil
 }
-func (r *restorePrinter) ReportTotal(start time.Time, totalSize, totalCount uint64) {
+func (r *restorePrinter) ReportTotal(duration time.Duration, totalSize, totalCount uint64) {
 	ver := &model.VerboseUpdate{
 		MessageType: "verbose_status",
 		Action:      "scan_finished",
-		Duration:    utils.FormatDuration(time.Since(start)),
+		Duration:    utils.FormatDuration(duration),
 		DataSize:    utils.FormatBytes(totalSize),
 		TotalFiles:  uint(totalCount),
 	}
