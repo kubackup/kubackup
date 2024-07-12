@@ -15,14 +15,13 @@ ENV CGO_ENABLED=0
 ENV GOPATH=/root/gopath
 
 WORKDIR /dowell/
-COPY . /dowell/
+COPY --from=buildvue /dowell /dowell
 RUN --mount=type=cache,target=/root/gopath echo -e 'https://mirrors.ustc.edu.cn/alpine/v3.20/main/\nhttps://mirrors.ustc.edu.cn/alpine/v3.20/community/' > /etc/apk/repositories &&\
     apk update &&\
     apk upgrade &&\
     apk add --no-cache git make libffi-dev openssl-dev libtool tzdata curl &&\
     cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &&  \
     sh prepare.sh
-COPY --from=buildvue /dowell /dowell
 RUN --mount=type=cache,target=/root/gopath make build_go
 
 FROM alpine:latest
