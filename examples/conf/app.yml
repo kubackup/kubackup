@@ -10,12 +10,12 @@ data:
   # 是否启用缓存
   noCache: false
   # 本地缓存目录
-  cacheDir: /Users/tanyi/Documents/gocode/kubackup_open/examples/cache
+  cacheDir: /root/.kubackup/cache
   # 数据库目录
-  dbDir: /Users/tanyi/Documents/gocode/kubackup_open/examples/db
+  dbDir: /root/.kubackup/db
 logger:
   level: info
-  logPath: /Users/tanyi/Documents/gocode/kubackup_open/examples/log
+  logPath: /root/.kubackup/log
 jwt:
   # jwt密钥，请自行修改
   key: dowell

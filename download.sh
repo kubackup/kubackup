@@ -13,7 +13,6 @@ cp -rp restic-"${version}"/LICENSE pkg/restic_source/
 cp -rp restic-"${version}"/VERSION pkg/restic_source/
 rm -rf restic.tar.gz
 rm -rf restic-"${version}"
-
 if [[ "$OSTYPE" =~ ^linux ]]; then
 	# linux
 	# shellcheck disable=SC2046
@@ -24,5 +23,5 @@ elif [[ "$OSTYPE" =~ ^darwin ]]; then
 	sed -i '' "s/\"github.com\/restic\/restic\/internal/\"github.com\/kubackup\/kubackup\/pkg\/restic_source\/rinternal/g" $(grep -rl "\"github.com\/restic\/restic\/internal" pkg/restic_source/rinternal)
 else
 	echo "Unsupported OS: $OSTYPE"
-	exit 1
+	sed -i "s/\"github.com\/restic\/restic\/internal/\"github.com\/kubackup\/kubackup\/pkg\/restic_source\/rinternal/g" $(grep -rl "\"github.com\/restic\/restic\/internal" pkg/restic_source/rinternal)
 fi

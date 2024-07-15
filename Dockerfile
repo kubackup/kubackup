@@ -8,21 +8,20 @@ RUN --mount=type=cache,target=/dowell/web/dashboard/node_modules cd /dowell/web/
 RUN --mount=type=cache,target=/dowell/web/dashboard/node_modules cd /dowell/web/dashboard &&\
     npm run build:prod
 
-FROM golang:1.16.15-alpine3.15 AS buildbin
+FROM golang:1.22.5-alpine3.20 AS buildbin
 ENV GO111MODULE=on
 ENV GOPROXY="https://goproxy.cn,direct"
 ENV CGO_ENABLED=0
 ENV GOPATH=/root/gopath
 
 WORKDIR /dowell/
-COPY . /dowell/
-RUN --mount=type=cache,target=/root/gopath echo -e 'https://mirrors.ustc.edu.cn/alpine/v3.15/main/\nhttps://mirrors.ustc.edu.cn/alpine/v3.15/community/' > /etc/apk/repositories &&\
+COPY --from=buildvue /dowell /dowell
+RUN --mount=type=cache,target=/root/gopath echo -e 'https://mirrors.ustc.edu.cn/alpine/v3.20/main/\nhttps://mirrors.ustc.edu.cn/alpine/v3.20/community/' > /etc/apk/repositories &&\
     apk update &&\
     apk upgrade &&\
     apk add --no-cache git make libffi-dev openssl-dev libtool tzdata curl &&\
     cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &&  \
     sh prepare.sh
-COPY --from=buildvue /dowell /dowell
 RUN --mount=type=cache,target=/root/gopath make build_go
 
 FROM alpine:latest
