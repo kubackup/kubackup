@@ -9,15 +9,12 @@ import (
 	"github.com/kubackup/kubackup/internal/server"
 	"github.com/kubackup/kubackup/internal/service/v1/common"
 	"github.com/kubackup/kubackup/internal/store/task"
-	ui "github.com/kubackup/kubackup/internal/ui/restore"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/archiver"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/errors"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/filter"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/fs"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restorer"
+	restoreui "github.com/kubackup/kubackup/pkg/restic_source/rinternal/ui/restore"
 	"gopkg.in/tomb.v2"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -25,15 +22,14 @@ import (
 
 // RestoreOptions collects all options for the restore command.
 type RestoreOptions struct {
-	Exclude            []string        //exclude a `pattern` (can be specified multiple times)
-	InsensitiveExclude []string        //same as `--exclude` but ignores the casing of filenames
-	Include            []string        //include a `pattern`, exclude everything else (can be specified multiple times)
-	InsensitiveInclude []string        //same as `--include` but ignores the casing of filenames
-	Target             string          //directory to extract data to
-	Hosts              []string        //only consider snapshots for this host when the snapshot ID is "latest" (can be specified multiple times)
-	Paths              []string        //only consider snapshots which include this (absolute) `path` for snapshot ID "latest"
-	Tags               restic.TagLists //only consider snapshots which include this `taglist` for snapshot ID "latest"
-	Verify             bool            //verify restored files content
+	Exclude            []string //exclude a `pattern` (can be specified multiple times)
+	InsensitiveExclude []string //same as `--exclude` but ignores the casing of filenames
+	Include            []string //include a `pattern`, exclude everything else (can be specified multiple times)
+	InsensitiveInclude []string //same as `--include` but ignores the casing of filenames
+	Target             string   //directory to extract data to
+	restic.SnapshotFilter
+	Sparse bool //restore files as sparse
+	Verify bool //verify restored files content
 }
 
 func RunRestore(opts RestoreOptions, repoid int, snapshotid string) error {
@@ -43,6 +39,28 @@ func RunRestore(opts RestoreOptions, repoid int, snapshotid string) error {
 	hasExcludes := len(opts.Exclude) > 0 || len(opts.InsensitiveExclude) > 0
 	hasIncludes := len(opts.Include) > 0 || len(opts.InsensitiveInclude) > 0
 
+	// Validate provided patterns
+	if len(opts.Exclude) > 0 {
+		if err := filter.ValidatePatterns(opts.Exclude); err != nil {
+			return errors.Fatalf("--exclude: %s", err)
+		}
+	}
+	if len(opts.InsensitiveExclude) > 0 {
+		if err := filter.ValidatePatterns(opts.InsensitiveExclude); err != nil {
+			return errors.Fatalf("--iexclude: %s", err)
+		}
+	}
+	if len(opts.Include) > 0 {
+		if err := filter.ValidatePatterns(opts.Include); err != nil {
+			return errors.Fatalf("--include: %s", err)
+		}
+	}
+	if len(opts.InsensitiveInclude) > 0 {
+		if err := filter.ValidatePatterns(opts.InsensitiveInclude); err != nil {
+			return errors.Fatalf("--iinclude: %s", err)
+		}
+	}
+
 	for i, str := range opts.InsensitiveExclude {
 		opts.InsensitiveExclude[i] = strings.ToLower(str)
 	}
@@ -50,6 +68,10 @@ func RunRestore(opts RestoreOptions, repoid int, snapshotid string) error {
 	for i, str := range opts.InsensitiveInclude {
 		opts.InsensitiveInclude[i] = strings.ToLower(str)
 	}
+	if opts.Target == "" {
+		return errors.Fatal("please specify a directory to restore to (--target)")
+	}
+
 	if hasExcludes && hasIncludes {
 		return errors.Fatal("exclude and include patterns are mutually exclusive")
 	}
@@ -66,10 +88,6 @@ func RunRestore(opts RestoreOptions, repoid int, snapshotid string) error {
 		cancel()
 	})
 
-	//err = LoadIndex(ctx, repo)
-	//if err != nil {
-	//	return err
-	//}
 	ta, err := createRestoreTask(opts.Target, repoid)
 	if err != nil {
 		return err
@@ -81,51 +99,28 @@ func RunRestore(opts RestoreOptions, repoid int, snapshotid string) error {
 		Path: ta.Path,
 	}
 	taskInfo.SetId(ta.Id)
-	progress := NewRestoreProgress(&taskInfo)
-	progressReporter := ui.NewProgress(progress)
-	// 设置进度发送频率
-	progress.SetMinUpdatePause(time.Second)
-	progressReporter.SetMinUpdatePause(time.Second)
-	t.Go(func() error { return progressReporter.Run(t.Context(ctx)) })
-	clean.AddCleanCtx(func() {
-		t.Kill(nil)
-	})
-	var id restic.ID
-	if snapshotid == "latest" {
-		id, err = restic.FindLatestSnapshot(ctx, repo, opts.Paths, opts.Tags, opts.Hosts, nil)
-		if err != nil {
-			clean.Cleanup()
-			return fmt.Errorf("latest snapshot for criteria not found: %v Paths:%v Hosts:%v", err, opts.Paths, opts.Hosts)
-		}
-	} else {
-		id, err = restic.FindSnapshot(ctx, repo, snapshotid)
-		if err != nil {
-			clean.Cleanup()
-			return fmt.Errorf("invalid id %q: %v", snapshotid, err)
-		}
-	}
-	// 获取数据总数
-	t.Go(func() error {
-		stats, err := getStatsForSnapshots(ctx, repo, id)
-		if err != nil {
-			return progressReporter.ScannerError(err)
-		}
-		s := ui.Stats{
-			TotalSize:      stats.TotalSize,
-			TotalFileCount: uint(stats.TotalFileCount),
-		}
-		progressReporter.ReportTotal("", s)
-		return nil
-	})
+	printer := NewRestorePrinter(&taskInfo)
+	progressReporter := restoreui.NewProgress(printer, time.Second)
+	// 设置进度权重
+	printer.SetWeight(4, 1)
 
-	res, err := restorer.NewRestorer(ctx, repo, id)
+	sn, subfolder, err := (&restic.SnapshotFilter{
+		Hosts: opts.Hosts,
+		Paths: opts.Paths,
+		Tags:  opts.Tags,
+	}).FindLatest(ctx, repo.Backend(), repo, snapshotid)
 	if err != nil {
-		clean.Cleanup()
-		return fmt.Errorf("creating restorer failed: %v\n", err)
+		return errors.Fatalf("failed to find snapshot: %v", err)
 	}
-	res.Error = func(location string, err error) error {
-		return progressReporter.Error(location, err)
+
+	sn.Tree, err = restic.FindTreeDirectory(ctx, repo, sn.Tree, subfolder)
+	if err != nil {
+		return err
 	}
+
+	res := restorer.NewRestorer(repo, sn, opts.Sparse, progressReporter)
+
+	res.Error = printer.Error
 
 	excludePatterns := filter.ParsePatterns(opts.Exclude)
 	insensitiveExcludePatterns := filter.ParsePatterns(opts.InsensitiveExclude)
@@ -175,37 +170,7 @@ func RunRestore(opts RestoreOptions, repoid int, snapshotid string) error {
 		res.SelectFilter = selectIncludeFilter
 	}
 
-	selectByNameFilter := func(item string) bool {
-		return true
-	}
-
-	selectFilter := func(item string, fi os.FileInfo) bool {
-		return true
-	}
-
-	var targetFS fs.FS = fs.Local{}
-	sc := archiver.NewScanner(targetFS)
-	sc.SelectByName = selectByNameFilter
-	sc.Select = selectFilter
-	sc.Result = progressReporter.CompleteItem
-	start := false
-	t.Go(func() error {
-		tic := time.NewTicker(time.Second)
-		defer tic.Stop()
-		for {
-			select {
-			case <-t.Context(ctx).Done():
-				return nil
-			case <-tic.C:
-				if !start {
-					continue
-				}
-			}
-			_ = sc.Scan(ctx, res.Snapshot().Paths)
-		}
-	})
-
-	server.Logger().Debugf("restoring %s to %s\n", res.Snapshot(), opts.Target)
+	server.Logger().Debugf("restoring %s to %s\n", res.Snapshot().ID().Str(), opts.Target)
 	taskinfoid := ta.Id
 	bound := make(chan error)
 	taskInfo.SetBound(bound)
@@ -217,7 +182,7 @@ func RunRestore(opts RestoreOptions, repoid int, snapshotid string) error {
 				return nil
 			case <-task.TaskInfos.Get(taskInfo.GetId()).GetBound():
 				info := task.TaskInfos.Get(taskInfo.GetId())
-				progress.UpdateTaskInfo(info)
+				printer.UpdateTaskInfo(info)
 			}
 		}
 	})
@@ -227,28 +192,27 @@ func RunRestore(opts RestoreOptions, repoid int, snapshotid string) error {
 		if err != nil {
 			server.Logger().Error(err)
 		}
-		start = true
 		err = res.RestoreTo(ctx, opts.Target)
 		if err != nil {
 			server.Logger().Error(err)
-			_ = progressReporter.Error("RestoreTo", err)
+			_ = printer.Error("RestoreTo", err)
 		}
 		if opts.Verify {
 			server.Logger().Debugf("verifying files in %s\n", opts.Target)
 			t0 := time.Now()
 			count, err := res.VerifyFiles(ctx, opts.Target)
 			if err != nil {
-				_ = progressReporter.Error("VerifyFiles", err)
+				_ = printer.Error("VerifyFiles", err)
 			}
-			server.Logger().Debugf("finished verifying %d files in %s (took %s)\n", count, opts.Target,
-				time.Since(t0).Round(time.Millisecond))
+			printer.ReportVerify(fmt.Sprintf("finished verifying %d files in %s (took %s)\n", count, opts.Target,
+				time.Since(t0).Round(time.Millisecond)))
 		}
 		t.Kill(nil)
 		werr := t.Wait()
 		if werr != nil {
 			server.Logger().Error(werr)
 		}
-		progressReporter.Finish(snapshotid)
+		progressReporter.Finish()
 	}()
 	return nil
 
@@ -278,26 +242,4 @@ func createRestoreTask(target string, repository int) (*thmodel.Task, error) {
 		return nil, err
 	}
 	return t, nil
-}
-
-func getStatsForSnapshots(ctx context.Context, repo restic.Repository, id restic.ID) (*StatsContainer, error) {
-	opt := StatsOptions{
-		countMode: countModeRestoreSize,
-	}
-	stats := &StatsContainer{
-		uniqueFiles:    make(map[fileID]struct{}),
-		uniqueInodes:   make(map[uint64]struct{}),
-		fileBlobs:      make(map[string]restic.IDSet),
-		blobs:          restic.NewBlobSet(),
-		snapshotsCount: 0,
-	}
-	sn, err := restic.LoadSnapshot(ctx, repo, id)
-	if err != nil {
-		return nil, err
-	}
-	err = statsWalkSnapshot(opt, ctx, sn, repo, stats)
-	if err != nil {
-		return nil, err
-	}
-	return stats, nil
 }

@@ -19,6 +19,10 @@
             <el-form-item label="类型:">
               <span>{{ formatType(repoData.type) }}</span>
             </el-form-item>
+            <el-form-item label="格式版本:">
+              <span>{{ repoData.repositoryVersion }}</span>
+              <el-button type="text" @click="migrationHandler()">升级版本</el-button>
+            </el-form-item>
             <el-form-item label="连接状态:">
               <el-tag :type="formatStatus(repoData.status).color">
                 {{ formatStatus(repoData.status).name }}
@@ -51,6 +55,11 @@
                 <el-button type="text" @click="pruneHandler()">重新执行</el-button>
               </div>
             </el-form-item>
+            <el-form-item label="清除锁:">
+              <div class="form-btn">
+                <el-button type="text" @click="unlockHandler()">执行</el-button>
+              </div>
+            </el-form-item>
           </el-form>
         </el-col>
         <el-col :xs="18" :sm="18" :lg="18" class="card-panel-col">
@@ -67,6 +76,10 @@
               <Terminal title="日志" showHeader :init="pruneObj.init"
                         :data="pruneObj.logs"/>
             </el-tab-pane>
+            <el-tab-pane label="版本升级" name="5">
+              <Terminal title="日志" showHeader :init="migrateObj.init"
+                        :data="migrateObj.logs"/>
+            </el-tab-pane>
 
           </el-tabs>
 
@@ -77,7 +90,15 @@
 </template>
 
 <script>
-import {fetchCheck, fetchGet, fetchLastOper, fetchPrune, fetchRebuildIndex} from '@/api/repository'
+import {
+  fetchCheck,
+  fetchGet,
+  fetchLastOper,
+  fetchMigrate,
+  fetchPrune,
+  fetchRebuildIndex,
+  fetchUnlock
+} from '@/api/repository'
 import Terminal from '@/components/TermLog'
 import {dateFormat} from "@/utils";
 import SockJS from 'sockjs-client'
@@ -107,6 +128,11 @@ export default {
         init: true,
         logs: []
       },
+      migrateObj: {
+        status: 1,
+        init: true,
+        logs: []
+      },
       repoData: {
         type: 4
       },
@@ -123,6 +149,7 @@ export default {
   created() {
     this.listQuery.id = this.$route.params && this.$route.params.id
     this.getRepo()
+    this.getLastOper(5)
     this.getLastOper(3)
     this.getLastOper(2)
     this.getLastOper(1)
@@ -139,6 +166,16 @@ export default {
         this.openSockjs(res.data)
       }).finally(() => {
         this.activeName = '1'
+      })
+    },
+    migrationHandler() {
+      this.migrateObj.logs = []
+      this.migrateObj.init = true
+      fetchMigrate(this.listQuery.id).then(res => {
+        this.curSockObj = 5
+        this.openSockjs(res.data)
+      }).finally(() => {
+        this.activeName = '5'
       })
     },
     rebuildIndexHandler() {
@@ -159,6 +196,11 @@ export default {
         this.openSockjs(res.data)
       }).finally(() => {
         this.activeName = '3'
+      })
+    },
+    unlockHandler() {
+      fetchUnlock(this.listQuery.id).then(res => {
+        this.$notify.success('成功清理' + res.data + '个锁')
       })
     },
     getLastOper(type) {
@@ -204,6 +246,14 @@ export default {
             this.pruneObj = data
           }
           this.pruneObj.init = !isPush
+          break
+        case 5:
+          if (isPush) {
+            this.migrateObj.logs.push(data)
+          } else {
+            this.migrateObj = data
+          }
+          this.migrateObj.init = !isPush
           break
         default:
       }

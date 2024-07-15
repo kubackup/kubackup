@@ -126,6 +126,11 @@
           <el-button type="text" @click="cronNext(temp.execTimeCron)">下次执行时间</el-button>
           <span style="margin-left: 20px;color: red">注意：最后一位"年"仅支持每年（*），其它值无效</span>
         </el-form-item>
+        <el-form-item label="读取并发数量" prop="ReadConcurrency">
+          <el-input v-model="temp.readConcurrency" clearable>
+            <template slot="append">默认2</template>
+          </el-input>
+        </el-form-item>
 
         <el-form-item v-if="dialogStatus === 'create'" label="立即备份">
           <el-switch v-model="temp.immediate"/>
@@ -255,7 +260,8 @@ export default {
         repositoryId: '',
         status: 2,
         immediate: false,
-        execTimeCron: ''
+        execTimeCron: '',
+        readConcurrency: 2
       },
       rules: {
         name: [{required: true, message: '该项为必填项', trigger: 'blur'}],
@@ -293,7 +299,7 @@ export default {
         this.dirCur = path
       }
       this.temp.path = this.dirCur
-      if (!this.temp.name){
+      if (!this.temp.name) {
         this.temp.name = this.dirCur
       }
       this.dialogDirVisible = false
@@ -436,6 +442,11 @@ export default {
             return
           }
           this.buttonLoading = true
+          if (this.temp.readConcurrency === '') {
+            this.temp.readConcurrency = 2
+          } else {
+            this.temp.readConcurrency = Number(this.temp.readConcurrency)
+          }
           fetchCreate(this.temp).then(res => {
             var planid = res.data
             this.$notify.success('创建成功！')

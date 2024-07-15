@@ -13,7 +13,7 @@ func newProgressMax(show bool, max uint64, description string, spr *wsTaskInfo.S
 	if !show {
 		return nil
 	}
-	return progress.New(spr.MinUpdatePause, max, func(v uint64, max uint64, d time.Duration, final bool) {
+	return progress.NewCounter(spr.MinUpdatePause, max, func(v uint64, max uint64, d time.Duration, final bool) {
 		var status string
 		if max == 0 {
 			status = fmt.Sprintf("[%s]          %d %s", utils.FormatDuration(d), v, description)

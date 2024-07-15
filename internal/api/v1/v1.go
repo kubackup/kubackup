@@ -17,6 +17,7 @@ import (
 	"github.com/kubackup/kubackup/internal/consts/system_status"
 	"github.com/kubackup/kubackup/internal/entity/v1/oplog"
 	"github.com/kubackup/kubackup/internal/model"
+	"github.com/kubackup/kubackup/internal/server"
 	"github.com/kubackup/kubackup/internal/service/v1/common"
 	logser "github.com/kubackup/kubackup/internal/service/v1/oplog"
 	"github.com/kubackup/kubackup/pkg/utils"
@@ -75,9 +76,10 @@ func logHandler() iris.Handler {
 				"success":      true,
 				"systemStatus": system_status.Normal,
 				"data":         ctx.Values().Get("data"),
+				"isDocker":     server.IsDocker(),
 			}
 			ctx.StatusCode(iris.StatusUnauthorized)
-			_, _ = ctx.JSON(resp)
+			_ = ctx.JSON(resp, iris.JSON{})
 			return
 		}
 

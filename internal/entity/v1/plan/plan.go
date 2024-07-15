@@ -10,7 +10,8 @@ type Plan struct {
 	Path             string `json:"path"` //备份路径或还原路径
 	RepositoryId     int    `json:"repositoryId"`
 	Status           int    `json:"status"`
-	ExecTimeCron     string `json:"execTimeCron"` //定时执行时间
+	ExecTimeCron     string `json:"execTimeCron"`    //定时执行时间
+	ReadConcurrency  uint   `json:"readConcurrency"` //读取并发数量，默认取cpu线程数
 }
 
 // 计划/策略 状态

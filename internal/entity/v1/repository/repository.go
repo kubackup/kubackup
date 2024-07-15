@@ -26,9 +26,12 @@ type Repository struct {
 	// B2_ACCOUNT_ID
 	AccountID string `json:"accountId"`
 	// 密码
-	Password string `json:"password"`
-	Status   int    `json:"status"`
-	Errmsg   string `json:"errmsg"`
+	Password          string `json:"password"`
+	Status            int    `json:"status"`
+	Errmsg            string `json:"errmsg"`
+	RepositoryVersion string `json:"repositoryVersion"`
+	Compression       int    `json:"compression"` //压缩模式auto:0、off:1、max:2
+	PackSize          int    `json:"packSize"`
 }
 
 // Type

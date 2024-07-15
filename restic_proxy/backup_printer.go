@@ -6,12 +6,12 @@ import (
 	"github.com/kubackup/kubackup/internal/service/v1/common"
 	"github.com/kubackup/kubackup/internal/store/task"
 	wsTaskInfo "github.com/kubackup/kubackup/internal/store/ws_task_info"
-	"github.com/kubackup/kubackup/internal/ui/backup"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/archiver"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/ui"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/ui/backup"
 	"github.com/kubackup/kubackup/pkg/utils"
-	"os"
+	"math"
 	"sort"
 	"time"
 )
@@ -19,9 +19,11 @@ import (
 type TaskProgress struct {
 	*ui.StdioWrapper
 	task           wsTaskInfo.WsTaskInfo
-	MinUpdatePause time.Duration
+	weightCount    float64 //数量进度权重
+	weightSize     float64 //大小进度权重
 	lastUpdate     time.Time
 	errors         []model.ErrorUpdate
+	minUpdatePause time.Duration
 }
 
 func (t *TaskProgress) E(msg string, args ...interface{}) {
@@ -47,50 +49,59 @@ func (t *TaskProgress) V(msg string, args ...interface{}) {
 	t.print(msg, true)
 }
 
-func (t *TaskProgress) VV(msg string, args ...interface{}) {
-	t.print(msg, true)
-}
-
 var _ backup.ProgressPrinter = &TaskProgress{}
 
-func NewTaskProgress(task wsTaskInfo.WsTaskInfo) *TaskProgress {
+func NewTaskProgress(task wsTaskInfo.WsTaskInfo, minUpdatePause time.Duration) *TaskProgress {
 	return &TaskProgress{
 		task:           task,
 		errors:         make([]model.ErrorUpdate, 0),
-		MinUpdatePause: time.Second,
+		weightCount:    1,
+		weightSize:     1,
+		minUpdatePause: minUpdatePause,
 	}
 }
+
 func (t *TaskProgress) UpdateTaskInfo(task wsTaskInfo.WsTaskInfo) {
 	t.task = task
 }
-func (t *TaskProgress) SetMinUpdatePause(d time.Duration) {
-	t.MinUpdatePause = d
+func (t *TaskProgress) SetWeight(weightCount, weightSize float64) {
+	t.weightSize = weightSize
+	t.weightCount = weightCount
 }
 
 func (t *TaskProgress) print(status interface{}, forceUpdate bool) {
-	//控制发送频率
-	if !forceUpdate && (time.Since(t.lastUpdate) < t.MinUpdatePause || t.MinUpdatePause == 0) {
+	// limit update frequency
+	if !forceUpdate && (time.Since(t.lastUpdate) < t.minUpdatePause || t.minUpdatePause == 0) {
 		return
 	}
 	t.lastUpdate = time.Now()
 	t.task.SendMsg(status)
 }
 
-func (t *TaskProgress) Update(total, processed backup.Counter, avgSpeed uint64, errors uint, currentFiles map[string]struct{}, start time.Time, secs uint64) {
+func (t *TaskProgress) Update(total, processed backup.Counter, errors uint, currentFiles map[string]struct{}, start time.Time, secs uint64) {
+	duration := time.Since(start)
+	avg := ""
+	if duration/time.Second > 0 {
+		avg = utils.FormatBytesSpeed(processed.Bytes / uint64(duration/time.Second))
+	}
+
 	status := model.StatusUpdate{
 		MessageType:      "status",
-		SecondsElapsed:   utils.FormatDuration(time.Since(start)),
+		SecondsElapsed:   utils.FormatDuration(duration),
 		SecondsRemaining: utils.FormatSeconds(secs),
 		TotalFiles:       total.Files,
 		FilesDone:        processed.Files,
 		TotalBytes:       utils.FormatBytes(total.Bytes),
 		BytesDone:        utils.FormatBytes(processed.Bytes),
 		ErrorCount:       errors,
-		AvgSpeed:         utils.FormatBytesSpeed(avgSpeed),
+		AvgSpeed:         avg,
 	}
 
-	if total.Bytes > 0 {
-		status.PercentDone = float64(processed.Bytes) / float64(total.Bytes)
+	if total.Bytes > 0 && total.Files > 0 {
+		denominator := float64(total.Files)*t.weightCount + float64(total.Bytes)*t.weightSize
+		numerator := float64(processed.Files)*t.weightCount + float64(processed.Bytes)*t.weightSize
+		status.PercentDone = numerator / denominator
+		status.PercentDone = math.Floor(status.PercentDone*100) / 100
 	}
 
 	for filename := range currentFiles {
@@ -99,10 +110,11 @@ func (t *TaskProgress) Update(total, processed backup.Counter, avgSpeed uint64, 
 	sort.Strings(status.CurrentFiles)
 	t.task.(*task.TaskInfo).Progress = &status
 	task.TaskInfos.Set(t.task.GetId(), t.task)
+	// 发送频率由reporter控制，这里不做控制
 	t.print(&status, true)
 }
 
-func (t *TaskProgress) ScannerError(item string, fi os.FileInfo, err error) error {
+func (t *TaskProgress) ScannerError(item string, err error) error {
 	errorUpdate := &model.ErrorUpdate{
 		MessageType: "error",
 		Error:       err.Error(),
@@ -117,7 +129,7 @@ func (t *TaskProgress) ScannerError(item string, fi os.FileInfo, err error) erro
 	return err
 }
 
-func (t *TaskProgress) Error(item string, fi os.FileInfo, err error) error {
+func (t *TaskProgress) Error(item string, err error) error {
 	errorUpdate := model.ErrorUpdate{
 		MessageType: "error",
 		Error:       err.Error(),
@@ -136,7 +148,7 @@ func (t *TaskProgress) Error(item string, fi os.FileInfo, err error) error {
 	return err
 }
 
-func (t *TaskProgress) CompleteItem(messageType, item string, previous, current *restic.Node, s archiver.ItemStats, d time.Duration) {
+func (t *TaskProgress) CompleteItem(messageType string, item string, s archiver.ItemStats, d time.Duration) {
 	var status model.VerboseUpdate
 	switch messageType {
 	case "dir new":
@@ -189,7 +201,7 @@ func (t *TaskProgress) CompleteItem(messageType, item string, previous, current 
 	t.print(&status, false)
 }
 
-func (t *TaskProgress) ReportTotal(item string, start time.Time, s archiver.ScanStats) {
+func (t *TaskProgress) ReportTotal(start time.Time, s archiver.ScanStats) {
 	ver := &model.VerboseUpdate{
 		MessageType: "verbose_status",
 		Action:      "scan_finished",
@@ -232,10 +244,6 @@ func (t *TaskProgress) Finish(snapshotID restic.ID, start time.Time, summary *ba
 			p1.FilesDone = p1.TotalFiles
 			p1.SecondsRemaining = "0"
 			p1.SecondsElapsed = summaryOut.TotalDuration
-			sec := uint64(time.Since(start) / time.Second)
-			if sec > 0 {
-				p1.AvgSpeed = utils.FormatBytesSpeed(summary.ProcessedBytes / sec)
-			}
 			t.print(p1, true)
 		}
 	}

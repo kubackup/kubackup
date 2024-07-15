@@ -45,3 +45,13 @@ export const LoglevelList = [
   { code: 3, name: 'Success', color: 'success' },
   { code: 4, name: 'Error', color: 'error' }
 ]
+
+/**
+ * 压缩级别
+ * @type {[{code: number, color: string, name: string},{code: number, color: string, name: string},{code: number, color: string, name: string}]}
+ */
+export const compressionList = [
+  { code: 0, name: '自动', color: 'success' },
+  { code: 1, name: '关闭', color: 'info' },
+  { code: 2, name: '最大', color: 'warning' }
+]

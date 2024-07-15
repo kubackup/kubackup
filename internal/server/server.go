@@ -9,15 +9,16 @@ import (
 	"github.com/kataras/iris/v12"
 	"github.com/kataras/iris/v12/context"
 	"github.com/kataras/iris/v12/middleware/pprof"
-	"github.com/kataras/iris/v12/view"
 	cf "github.com/kubackup/kubackup/internal/config"
 	"github.com/kubackup/kubackup/internal/consts/system_status"
 	"github.com/kubackup/kubackup/internal/entity/v1/config"
 	fileutil "github.com/kubackup/kubackup/pkg/file"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/fs"
+	"github.com/kubackup/kubackup/pkg/utils/docker"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"io"
+	iofs "io/fs"
 	"net/http"
 	"os"
 	"path"
@@ -34,6 +35,7 @@ type BackupServer struct {
 	db           *storm.DB
 	cache        cache.ICache
 	systemStatus string
+	isDocker     bool //是否运行在docker中
 }
 
 var EmbedWebDashboard embed.FS
@@ -48,6 +50,7 @@ func Listen(route func(party iris.Party), host string, port int, path string) er
 
 func NewBackupServer(host string, port int, path string) *BackupServer {
 	server := &BackupServer{systemStatus: system_status.Normal}
+	server.isDocker = docker.IsDockerEnv()
 	server.app = iris.New()
 	c, err := cf.ReadConfig(path)
 	if err != nil {
@@ -79,9 +82,11 @@ func (e *BackupServer) setUpStaticFile() {
 	spaOption := iris.DirOptions{SPA: true, IndexName: "index.html"}
 	party := e.rootRoute.Party("/")
 	party.Use(iris.Compression)
-	dashboardFS := iris.PrefixDir("web/dashboard", http.FS(EmbedWebDashboard))
-	party.RegisterView(view.HTML(dashboardFS, ".html"))
-	party.HandleDir("/", dashboardFS, spaOption)
+	fsys, err := iofs.Sub(EmbedWebDashboard, "web/dashboard")
+	if err != nil {
+		panic(err)
+	}
+	party.HandleDir("/", http.FS(fsys), spaOption)
 }
 
 func (e *BackupServer) setStop() {
@@ -171,6 +176,10 @@ func Config() *config.Config {
 	return bs.config
 }
 
+func IsDocker() bool {
+	return bs.isDocker
+}
+
 const ContentTypeDownload = "application/download"
 
 // 全局结果处理
@@ -181,8 +190,9 @@ func (e *BackupServer) setResultHandler() {
 				"success":      true,
 				"systemStatus": e.systemStatus,
 				"data":         nil,
+				"isDocker":     e.isDocker,
 			}
-			_, _ = ctx.JSON(resp)
+			_ = ctx.JSON(resp, iris.JSON{})
 			return
 		}
 		ctx.Next()
@@ -210,8 +220,9 @@ func (e *BackupServer) setResultHandler() {
 				"success":      true,
 				"systemStatus": system_status.Normal,
 				"data":         ctx.Values().Get("data"),
+				"isDocker":     e.isDocker,
 			}
-			_, _ = ctx.JSON(resp)
+			_ = ctx.JSON(resp, iris.JSON{})
 		}
 	})
 }
@@ -231,9 +242,10 @@ func (e *BackupServer) setUpErrHandler() {
 			"systemStatus": system_status.Normal,
 			"code":         ctx.GetStatusCode(),
 			"message":      message,
+			"isDocker":     e.isDocker,
 		}
 		ctx.StatusCode(iris.StatusOK)
-		_, _ = ctx.JSON(er)
+		_ = ctx.JSON(er, iris.JSON{})
 	})
 }
 

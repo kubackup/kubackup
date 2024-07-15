@@ -7,6 +7,7 @@ import (
 	"github.com/kubackup/kubackup/internal/consts"
 	"github.com/kubackup/kubackup/internal/model"
 	"github.com/kubackup/kubackup/internal/server"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/walker"
 	"github.com/kubackup/kubackup/pkg/utils"
@@ -21,16 +22,13 @@ type StatsOptions struct {
 	// the mode of counting to perform (see consts for available modes)
 	countMode string
 
-	// filter snapshots by, if given by user
-	Hosts []string
-	Tags  restic.TagLists
-	Paths []string
+	restic.SnapshotFilter
 }
 
 var doing = false
 var doinglock sync.Mutex
 
-//GetAllRepoStats 获取所有仓库状态
+// GetAllRepoStats 获取所有仓库状态
 func GetAllRepoStats() {
 	doinglock.Lock()
 	if doing {
@@ -137,7 +135,10 @@ func runStats(opts StatsOptions, repoid int, snapshotIDs []string) (*StatsContai
 	//if err = LoadIndex(ctx, repo); err != nil {
 	//	return nil, err
 	//}
-
+	snapshotLister, err := backend.MemorizeList(ctx, repo.Backend(), restic.SnapshotFile)
+	if err != nil {
+		return nil, err
+	}
 	// create a container for the stats (and other needed state)
 	stats := &StatsContainer{
 		uniqueFiles:    make(map[fileID]struct{}),
@@ -147,7 +148,7 @@ func runStats(opts StatsOptions, repoid int, snapshotIDs []string) (*StatsContai
 		snapshotsCount: 0,
 	}
 
-	for sn := range FindFilteredSnapshots(ctx, repo, opts.Hosts, opts.Tags, opts.Paths, snapshotIDs) {
+	for sn := range FindFilteredSnapshots(ctx, snapshotLister, repo, &opts.SnapshotFilter, snapshotIDs) {
 		err = statsWalkSnapshot(opts, ctx, sn, repo, stats)
 		if err != nil {
 			return nil, fmt.Errorf("error walking snapshot: %v", err)

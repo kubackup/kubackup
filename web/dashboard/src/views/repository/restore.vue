@@ -68,7 +68,8 @@
         <el-col :xs="16" :sm="16" :lg="16" class="card-panel-col">
           <el-card class="box-card">
             <div>
-              <el-input placeholder="输入准确路径，搜索速度会更快，如：/data/test/avator.png" v-model="fileSearch.name" clearable
+              <el-input placeholder="输入准确路径，搜索速度会更快，如：/data/test/avator.png" v-model="fileSearch.name"
+                        clearable
                         @clear="searchFile"
                         class="input-with-select">
                 <el-select v-model="fileSearch.type" slot="prepend" placeholder="请选择">
@@ -97,9 +98,10 @@
                   <span style="margin-left: 5px">{{ node.label }}</span>
                 </div>
                 <span>
+                  <span style="margin-right: 10px; font-size: 13px; display: inline">{{ data.size }}</span>
                   <i class="el-icon-loading" type="primary" v-if="data.loading"/>
                   <el-button
-                    v-if="data.type==='file'&& !data.loading"
+                    v-if="data.isMore===0 && !data.loading"
                     type="text"
                     size="mini"
                     @click="() => restoreFileHandler(data)">
@@ -126,13 +128,13 @@
             }}，/root为本次选择路径</span>
         </el-form-item>
         <el-form-item label="数据最终所在目录：" prop="path">
-          <span>{{ restoreOpt.dirCur + listQuery.path }}</span>
+          <span>{{ restoreOpt.dist }}</span>
         </el-form-item>
         <el-form-item label="是否校验数据完整性">
           <el-switch
             v-model="restoreOpt.verify">
           </el-switch>
-          <p style="color: red">开启校验数据完整性可保证数据100%还原，但是校验时间很长，请根据需要选择！</p>
+          <p style="color: red">开启数据完整性校验，校验时间较长，请根据需要选择！</p>
         </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
@@ -213,6 +215,8 @@ export default {
       restoreOpt: {
         dirCur: '/',
         snapid: '',
+        include: '',
+        dist: '',
         verify: false
       },
       listLoading: false,
@@ -263,6 +267,15 @@ export default {
       this.dialogFormVisible = true
       this.restoreOpt.snapid = snapid
       this.restoreOpt.dirCur = '/'
+      this.restoreOpt.dist = this.listQuery.path
+      this.restoreOpt.include = this.listQuery.path
+    },
+    restoreFileHandler(data) {
+      this.dialogFormVisible = true
+      this.restoreOpt.snapid = this.curSnap.short_id
+      this.restoreOpt.dirCur = '/'
+      this.restoreOpt.dist = data.path
+      this.restoreOpt.include = data.path
     },
     openDirSelect() {
       this.dialogDirVisible = true
@@ -272,6 +285,7 @@ export default {
     confirmDirSelect(path) {
       if (path) {
         this.restoreOpt.dirCur = path
+        this.restoreOpt.dist = path + this.restoreOpt.include
       }
       this.dialogDirVisible = false
     },
@@ -301,12 +315,14 @@ export default {
         return
       }
       this.restoreOpt.dirCur = path
+      this.restoreOpt.dist = path + this.restoreOpt.include
     },
     lsDir(path, isdir) {
       if (!isdir) {
         return
       }
       this.restoreOpt.dirCur = path
+      this.restoreOpt.dist = path + this.restoreOpt.include
       var q = {
         path: this.restoreOpt.dirCur
       }
@@ -376,6 +392,7 @@ export default {
               ctime: node.ctime,
               gid: node.gid,
               uid: node.uid,
+              size: node.size,
               children: []
             }
             this.filedata.children.push(newChild)
@@ -399,16 +416,6 @@ export default {
         this.$notify.info({title: '取消'})
       })
     },
-    restoreFileHandler(data) {
-      this.$confirm('确定将"' + data.name + '"将还原到"' + data.path + '"吗？', '还原文件', {
-        type: 'warning'
-      }).then(() => {
-        this.$notify.error("演示环境，不能执行操作")
-        this.dialogDirVisible = false
-        this.dialogFormVisible = false
-      }).catch(() => {
-      })
-    },
     loadSnapFiles(snap) {
       this.fileSearch.type = 1
       this.curSnap = snap
@@ -428,6 +435,7 @@ export default {
         ctime: '',
         gid: '',
         uid: '',
+        size: '',
         children: []
       }]
       this.getFiles(this.filedata, {
@@ -456,7 +464,7 @@ export default {
       if (data.type === 'dir') {
         //root节点点击、文件夹第一次点击，加载第一页数据，设置没有更多状态
         data.pageNum = 1
-        data.isMore = 2
+        data.isMore = 0
       } else {
         //加载更多
         data.pageNum++
@@ -488,6 +496,7 @@ export default {
               ctime: node.ctime,
               gid: node.gid,
               uid: node.uid,
+              size: node.size,
               children: []
             }]
           }
@@ -504,6 +513,7 @@ export default {
             ctime: node.ctime,
             gid: node.gid,
             uid: node.uid,
+            size: node.size,
             children: dirChild
           }
           if (data.isMore === 1) {
@@ -608,7 +618,7 @@ export default {
         if (this.listQuery.date) {
           const date = dateFormat(l.time, 'yyyy-MM-dd');
           const seldate = dateFormat(this.listQuery.date, 'yyyy-MM-dd');
-          if (date!==seldate){
+          if (date !== seldate) {
             return
           }
           this.activeName = name

@@ -1,6 +1,7 @@
 package restic
 
 import (
+	"fmt"
 	"github.com/fanjindong/go-cache"
 	"github.com/kataras/iris/v12"
 	"github.com/kataras/iris/v12/context"
@@ -116,11 +117,13 @@ func snapshotsHandler() iris.Handler {
 				return
 			}
 		}
+		groupBy, err := SplitSnapshotGroupBy(groupby)
 		opts := resticProxy.SnapshotOptions{
-			GroupBy: groupby,
-			Hosts:   hosts,
-			Paths:   paths,
-			Tags:    tags,
+			SnapshotFilter: restic.SnapshotFilter{Hosts: hosts, Paths: paths, Tags: tags},
+			Compact:        false,
+			Last:           false,
+			Latest:         0,
+			GroupBy:        groupBy,
 		}
 		var snapshotids []string
 		if snapshotid != "" {
@@ -215,39 +218,6 @@ func loadIndexHandler() iris.Handler {
 
 }
 
-func dumpHandler() iris.Handler {
-	return func(ctx *context.Context) {
-		snapshotid := ctx.Params().Get("snapshotid")
-		repository, err := ctx.Params().GetInt("repository")
-		if err != nil {
-			utils.Errore(ctx, err)
-			return
-		}
-		var dump model.DumpInfo
-		err = ctx.ReadJSON(&dump)
-		if err != nil {
-			utils.Errore(ctx, err)
-			return
-		}
-		if dump.Mode == 0 {
-			dump.Mode = 0755
-		}
-		if dump.Filename == "" {
-			utils.ErrorStr(ctx, "文件名不能为空")
-			return
-		}
-		opt := resticProxy.DumpOptions{
-			Archive: "zip",
-		}
-		err = resticProxy.RunDump(opt, repository, snapshotid, dump)
-		if err != nil {
-			utils.Errore(ctx, err)
-			return
-		}
-		ctx.Values().Set("data", "")
-	}
-}
-
 func checkHandler() iris.Handler {
 	return func(ctx *context.Context) {
 		repository, err := ctx.Params().GetInt("repository")
@@ -302,6 +272,43 @@ func pruneHandler() iris.Handler {
 		ctx.Values().Set("data", id)
 	}
 }
+func migrateHandler() iris.Handler {
+	return func(ctx *context.Context) {
+		repository, err := ctx.Params().GetInt("repository")
+		if err != nil {
+			utils.Errore(ctx, err)
+			return
+		}
+		force := ctx.Params().GetBoolDefault("force", false)
+		action := ctx.Params().GetStringDefault("action", "upgrade_repo_v2")
+		opt := resticProxy.MigrateOptions{
+			Force: force,
+		}
+		id, err := resticProxy.RunMigrate(opt, repository, action)
+		if err != nil {
+			utils.Errore(ctx, err)
+			return
+		}
+		ctx.Values().Set("data", id)
+	}
+}
+
+func unlockHandler() iris.Handler {
+	return func(ctx *context.Context) {
+		repository, err := ctx.Params().GetInt("repository")
+		if err != nil {
+			utils.Errore(ctx, err)
+			return
+		}
+		all := ctx.URLParam("all") == "true"
+		locks, err := resticProxy.UnlockRepoById(repository, all)
+		if err != nil {
+			utils.Errore(ctx, err)
+			return
+		}
+		ctx.Values().Set("data", locks)
+	}
+}
 
 func forgetHandler() iris.Handler {
 	return func(ctx *context.Context) {
@@ -320,6 +327,9 @@ func forgetHandler() iris.Handler {
 		}
 		id, err := resticProxy.RunForget(opt, repository, snapshotids)
 		if err != nil {
+			if restic.IsAlreadyLocked(err) {
+
+			}
 			utils.Errore(ctx, err)
 			return
 		}
@@ -338,10 +348,29 @@ func Install(parent iris.Party) {
 	sp.Get("/:repository/snapshots", snapshotsHandler())
 	sp.Get("/:repository/parms", parmsHandler())
 	sp.Get("/:repository/parmsForMy", parmsMyHandler())
-	sp.Post("/:repository/dump/:snapshotid", dumpHandler())
 	sp.Get("/:repository/loadIndex", loadIndexHandler())
 	sp.Post("/:repository/check", checkHandler())
 	sp.Post("/:repository/rebuild-index", rebuildIndexHandler())
 	sp.Post("/:repository/prune", pruneHandler())
 	sp.Post("/:repository/forget", forgetHandler())
+	sp.Post("/:repository/migrate", migrateHandler())
+	sp.Post("/:repository/unlock", unlockHandler())
+}
+
+func SplitSnapshotGroupBy(s string) (restic.SnapshotGroupByOptions, error) {
+	var l restic.SnapshotGroupByOptions
+	for _, option := range strings.Split(s, ",") {
+		switch option {
+		case "host", "hosts":
+			l.Host = true
+		case "path", "paths":
+			l.Path = true
+		case "tag", "tags":
+			l.Tag = true
+		case "":
+		default:
+			return restic.SnapshotGroupByOptions{}, fmt.Errorf("unknown grouping option: %q", option)
+		}
+	}
+	return l, nil
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/kubackup/kubackup/internal/service/v1/common"
 	"github.com/kubackup/kubackup/internal/store/log"
 	"github.com/kubackup/kubackup/internal/store/ws_task_info"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/errors"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/repository"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/ui/table"
@@ -17,16 +18,52 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strconv"
 )
+
+type ForgetPolicyCount int
+
+var ErrNegativePolicyCount = errors.New("negative values not allowed, use 'unlimited' instead")
+
+func (c *ForgetPolicyCount) Set(s string) error {
+	switch s {
+	case "unlimited":
+		*c = -1
+	default:
+		val, err := strconv.ParseInt(s, 10, 0)
+		if err != nil {
+			return err
+		}
+		if val < 0 {
+			return ErrNegativePolicyCount
+		}
+		*c = ForgetPolicyCount(val)
+	}
+
+	return nil
+}
+
+func (c *ForgetPolicyCount) String() string {
+	switch *c {
+	case -1:
+		return "unlimited"
+	default:
+		return strconv.FormatInt(int64(*c), 10)
+	}
+}
+
+func (c *ForgetPolicyCount) Type() string {
+	return "n"
+}
 
 // ForgetOptions collects all options for the forget command.
 type ForgetOptions struct {
-	Last          int //keep the last `n` snapshots
-	Hourly        int //keep the last `n` hourly snapshots
-	Daily         int //keep the last `n` daily snapshots
-	Weekly        int //keep the last `n` weekly snapshots
-	Monthly       int //keep the last `n` monthly snapshots
-	Yearly        int //keep the last `n` yearly snapshots
+	Last          ForgetPolicyCount
+	Hourly        ForgetPolicyCount
+	Daily         ForgetPolicyCount
+	Weekly        ForgetPolicyCount
+	Monthly       ForgetPolicyCount
+	Yearly        ForgetPolicyCount
 	Within        restic.Duration
 	WithinHourly  restic.Duration
 	WithinDaily   restic.Duration
@@ -35,13 +72,12 @@ type ForgetOptions struct {
 	WithinYearly  restic.Duration
 	KeepTags      restic.TagLists
 
-	Hosts   []string
-	Tags    restic.TagLists
-	Paths   []string
+	restic.SnapshotFilter
 	Compact bool //use compact output format
 
 	// Grouping
-	GroupBy string
+	GroupBy restic.SnapshotGroupByOptions
+	DryRun  bool
 	Prune   bool // automatically run the 'prune' command if snapshots have been removed
 }
 
@@ -150,7 +186,7 @@ func forget(opts ForgetOptions, ctx context.Context, repo *repository.Repository
 	var snapshots restic.Snapshots
 	removeSnIDs := restic.NewIDSet()
 
-	for sn := range FindFilteredSnapshots(ctx, repo, opts.Hosts, opts.Tags, opts.Paths, snapshotids) {
+	for sn := range FindFilteredSnapshots(ctx, repo.Backend(), repo, &opts.SnapshotFilter, snapshotids) {
 		snapshots = append(snapshots, sn)
 	}
 	if len(snapshots) <= 0 {
@@ -169,12 +205,12 @@ func forget(opts ForgetOptions, ctx context.Context, repo *repository.Repository
 		}
 
 		policy := restic.ExpirePolicy{
-			Last:          opts.Last,
-			Hourly:        opts.Hourly,
-			Daily:         opts.Daily,
-			Weekly:        opts.Weekly,
-			Monthly:       opts.Monthly,
-			Yearly:        opts.Yearly,
+			Last:          int(opts.Last),
+			Hourly:        int(opts.Hourly),
+			Daily:         int(opts.Daily),
+			Weekly:        int(opts.Weekly),
+			Monthly:       int(opts.Monthly),
+			Yearly:        int(opts.Yearly),
 			Within:        opts.Within,
 			WithinHourly:  opts.WithinHourly,
 			WithinDaily:   opts.WithinDaily,
@@ -234,7 +270,7 @@ func forget(opts ForgetOptions, ctx context.Context, repo *repository.Repository
 		if err != nil {
 			return err
 		}
-		return LoadIndex(ctx, repo)
+		return repo.LoadIndex(ctx, nil)
 	}
 	return nil
 }

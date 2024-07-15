@@ -109,9 +109,7 @@ func restoreHandler() iris.Handler {
 			Include:            includes,
 			InsensitiveInclude: iincludes,
 			Target:             target,
-			Hosts:              hosts,
-			Paths:              paths,
-			Tags:               tags,
+			SnapshotFilter:     restic.SnapshotFilter{Hosts: hosts, Paths: paths, Tags: tags},
 			Verify:             info.Verify,
 		}
 
@@ -215,18 +213,19 @@ func Backup(planid int) (int, error) {
 		ErrorCount:       0,
 	}
 	ta := &thmodel.Task{
-		Path:         pl.Path,
-		Name:         "backup_" + strconv.Itoa(planid) + "_" + strconv.Itoa(repoid) + "_" + time.Now().Format(consts.TaskHistoryName),
-		Status:       task.StatusNew,
-		RepositoryId: repoid,
-		Progress:     progress,
-		PlanId:       pl.Id,
+		Path:            pl.Path,
+		Name:            "backup_" + strconv.Itoa(planid) + "_" + strconv.Itoa(repoid) + "_" + time.Now().Format(consts.TaskHistoryName),
+		Status:          task.StatusNew,
+		RepositoryId:    repoid,
+		Progress:        progress,
+		PlanId:          pl.Id,
+		ReadConcurrency: pl.ReadConcurrency,
 	}
 	err = taskService.Create(ta, common.DBOptions{})
 	if err != nil {
 		return 0, err
 	}
-	opt := resticProxy.BackupOptions{}
+	opt := resticProxy.BackupOptions{UseFsSnapshot: true, ReadConcurrency: pl.ReadConcurrency}
 	taskInfo := task.TaskInfo{
 		Name: ta.Name,
 		Path: ta.Path,

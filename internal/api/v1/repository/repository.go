@@ -8,6 +8,7 @@ import (
 	repositoryDao "github.com/kubackup/kubackup/internal/service/v1/repository"
 	"github.com/kubackup/kubackup/pkg/utils"
 	resticProxy "github.com/kubackup/kubackup/restic_proxy"
+	"strconv"
 )
 
 var repositoryService repositoryDao.Service
@@ -29,15 +30,17 @@ func createHandler() iris.Handler {
 			return
 		}
 		option, _ := resticProxy.GetGlobalOptions(rep)
-		_, err1 := resticProxy.OpenRepository(option)
+		repo, err1 := resticProxy.OpenRepository(ctx, option)
 		if err1 != nil {
 			//仓库异常，重新初始化
-			err := resticProxy.RunInit(option)
+			version, err := resticProxy.RunInit(ctx, option)
 			if err != nil {
 				utils.Errore(ctx, err)
 				return
 			}
+			rep.RepositoryVersion = strconv.Itoa(int(version))
 		}
+		rep.RepositoryVersion = strconv.Itoa(int(repo.Config().Version))
 		rep.Status = repository.StatusNone
 		err = repositoryService.Create(&rep, common.DBOptions{})
 		if err != nil {
@@ -118,8 +121,9 @@ func updateHandler() iris.Handler {
 		if rep.Endpoint != "" {
 			rep2.Endpoint = rep.Endpoint
 		}
+		rep2.PackSize = rep.PackSize
 		option, _ := resticProxy.GetGlobalOptions(*rep2)
-		_, err = resticProxy.OpenRepository(option)
+		_, err = resticProxy.OpenRepository(ctx, option)
 		if err != nil {
 			utils.Errore(ctx, err)
 			return
@@ -147,9 +151,10 @@ func getHandler() iris.Handler {
 			utils.Errore(ctx, err)
 			return
 		}
-		res := resticProxy.CheckRepoStatus(resp.Id)
-		if res {
+		config := resticProxy.CheckRepoStatus(resp.Id)
+		if config != nil {
 			resp.Status = repository.StatusRun
+			resp.RepositoryVersion = strconv.Itoa(int(config.Version))
 		} else {
 			resp.Status = repository.StatusErr
 			resp.Errmsg = "仓库连接超时"

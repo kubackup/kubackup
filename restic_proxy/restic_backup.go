@@ -1,24 +1,21 @@
 package resticProxy
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"fmt"
 	"github.com/kubackup/kubackup/internal/server"
 	"github.com/kubackup/kubackup/internal/service/v1/common"
 	ser "github.com/kubackup/kubackup/internal/service/v1/task"
 	"github.com/kubackup/kubackup/internal/store/task"
-	"github.com/kubackup/kubackup/internal/ui/backup"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/archiver"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/errors"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/fs"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/repository"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/textfile"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/ui/backup"
 	"gopkg.in/tomb.v2"
 	"os"
-	"strings"
+	"runtime"
 	"time"
 )
 
@@ -32,25 +29,23 @@ var ErrInvalidSourceData = errors.New("at least one source file could not be rea
 
 // BackupOptions bundles all options for the backup command.
 type BackupOptions struct {
-	Parent                  string
-	Force                   bool
-	Excludes                []string
-	InsensitiveExcludes     []string
-	ExcludeFiles            []string
-	InsensitiveExcludeFiles []string
-	ExcludeOtherFS          bool
-	ExcludeIfPresent        []string
-	ExcludeCaches           bool
-	ExcludeLargerThan       string
-	StdinFilename           string
-	Tags                    restic.TagLists
-	Host                    string
-	TimeStamp               string // `time` of the backup (ex. '2012-11-01 22:08:41') (default: now)
-	WithAtime               bool
-	IgnoreInode             bool
-	IgnoreCtime             bool
-	UseFsSnapshot           bool
-	DryRun                  bool
+	excludePatternOptions
+	Parent            string
+	GroupBy           restic.SnapshotGroupByOptions
+	Force             bool
+	ExcludeOtherFS    bool
+	ExcludeIfPresent  []string
+	ExcludeCaches     bool
+	ExcludeLargerThan string
+	Tags              restic.TagLists
+	Host              string
+	TimeStamp         string // `time` of the backup (ex. '2012-11-01 22:08:41') (default: now)
+	WithAtime         bool
+	IgnoreInode       bool
+	IgnoreCtime       bool
+	UseFsSnapshot     bool
+	DryRun            bool
+	ReadConcurrency   uint //读取并发数量，默认2
 }
 
 func RunBackup(opts BackupOptions, repoid int, taskinfo task.TaskInfo) error {
@@ -77,19 +72,14 @@ func RunBackup(opts BackupOptions, repoid int, taskinfo task.TaskInfo) error {
 	timeStamp := time.Now()
 
 	var t tomb.Tomb
-	progressPrinter := NewTaskProgress(&taskinfo)
-	progressReporter := backup.NewProgress(progressPrinter)
+	progressPrinter := NewTaskProgress(&taskinfo, time.Second)
+	progressReporter := backup.NewProgress(progressPrinter, time.Second)
+	clean.AddCleanCtx(func() {
+		progressReporter.Done()
+	})
 	if opts.DryRun {
 		repo.SetDryRun()
-		progressReporter.SetDryRun()
 	}
-	// 设置进度发送频率
-	progressReporter.SetMinUpdatePause(time.Second)
-	progressPrinter.SetMinUpdatePause(time.Second)
-	t.Go(func() error { return progressReporter.Run(t.Context(ctx)) })
-	clean.AddCleanCtx(func() {
-		t.Kill(nil)
-	})
 	lock, err := lockRepo(ctx, repo)
 	if err != nil {
 		clean.Cleanup()
@@ -98,25 +88,27 @@ func RunBackup(opts BackupOptions, repoid int, taskinfo task.TaskInfo) error {
 	clean.AddCleanCtx(func() {
 		unlockRepo(lock)
 	})
-	rejectByNameFuncs, err := collectRejectByNameFuncs(opts, repo, targets)
+	rejectByNameFuncs, err := collectRejectByNameFuncs(opts, repo)
 	if err != nil {
 		clean.Cleanup()
 		return err
 	}
-	rejectFuncs, err := collectRejectFuncs(opts, repo, targets)
+	rejectFuncs, err := collectRejectFuncs(opts, targets)
 	if err != nil {
 		clean.Cleanup()
 		return err
 	}
-	parentSnapshotID, err := findParentSnapshot(ctx, repo, opts, targets, timeStamp)
+	parentSnapshot, err := findParentSnapshot(ctx, repo, opts, targets, timeStamp)
 	if err != nil {
 		clean.Cleanup()
 		return err
 	}
-	err = taskHistoryService.UpdateField(taskinfo.GetId(), "ParentId", parentSnapshotID.Str(), common.DBOptions{})
-	if err != nil {
-		clean.Cleanup()
-		return err
+	if parentSnapshot != nil {
+		err = taskHistoryService.UpdateField(taskinfo.GetId(), "ParentId", parentSnapshot.ID().Str(), common.DBOptions{})
+		if err != nil {
+			clean.Cleanup()
+			return err
+		}
 	}
 
 	selectByNameFilter := func(item string) bool {
@@ -137,22 +129,41 @@ func RunBackup(opts BackupOptions, repoid int, taskinfo task.TaskInfo) error {
 		return true
 	}
 	var targetFS fs.FS = fs.Local{}
+	if runtime.GOOS == "windows" && opts.UseFsSnapshot {
+		if err = fs.HasSufficientPrivilegesForVSS(); err != nil {
+			return err
+		}
+
+		errorHandler := func(item string, err error) error {
+			return progressReporter.Error(item, err)
+		}
+
+		messageHandler := func(msg string, args ...interface{}) {
+			progressPrinter.P(msg, args...)
+		}
+
+		localVss := fs.NewLocalVss(errorHandler, messageHandler)
+		defer localVss.DeleteSnapshots()
+		targetFS = localVss
+	}
 	sc := archiver.NewScanner(targetFS)
 	sc.SelectByName = selectByNameFilter
 	sc.Select = selectFilter
-	sc.Error = progressReporter.ScannerError
+	sc.Error = progressPrinter.ScannerError
 	sc.Result = progressReporter.ReportTotal
 
 	t.Go(func() error { return sc.Scan(t.Context(ctx), targets) })
 
-	arch := archiver.New(repo, targetFS, archiver.Options{})
+	arch := archiver.New(repo, targetFS, archiver.Options{
+		ReadConcurrency: opts.ReadConcurrency,
+	})
 	arch.SelectByName = selectByNameFilter
 	arch.Select = selectFilter
 	arch.WithAtime = opts.WithAtime
 	success := true
-	arch.Error = func(item string, fi os.FileInfo, err error) error {
+	arch.Error = func(item string, err error) error {
 		success = false
-		return progressReporter.Error(item, fi, err)
+		return progressReporter.Error(item, err)
 	}
 	arch.CompleteItem = progressReporter.CompleteItem
 	arch.StartFile = progressReporter.StartFile
@@ -167,16 +178,13 @@ func RunBackup(opts BackupOptions, repoid int, taskinfo task.TaskInfo) error {
 		arch.ChangeIgnoreFlags |= archiver.ChangeIgnoreCtime
 	}
 
-	if parentSnapshotID == nil {
-		parentSnapshotID = &restic.ID{}
-	}
-
 	snapshotOpts := archiver.SnapshotOptions{
 		Excludes:       opts.Excludes,
 		Tags:           opts.Tags.Flatten(),
 		Time:           timeStamp,
 		Hostname:       opts.Host,
-		ParentSnapshot: *parentSnapshotID,
+		ParentSnapshot: parentSnapshot,
+		ProgramVersion: "restic " + version,
 	}
 	bound := make(chan error)
 	taskinfo.SetBound(bound)
@@ -217,35 +225,39 @@ func RunBackup(opts BackupOptions, repoid int, taskinfo task.TaskInfo) error {
 		if !success {
 			progressPrinter.E(ErrInvalidSourceData.Error())
 		}
-		progressReporter.Finish(id)
+		progressReporter.Finish(id, opts.DryRun)
 	}()
 	return nil
 
 }
-func findParentSnapshot(ctx context.Context, repo restic.Repository, opts BackupOptions, targets []string, timeStampLimit time.Time) (parentID *restic.ID, err error) {
-	// Force using a parent
-	if !opts.Force && opts.Parent != "" {
-		id, err := restic.FindSnapshot(ctx, repo, opts.Parent)
-		if err != nil {
-			return nil, errors.Fatalf("invalid id %q: %v", opts.Parent, err)
-		}
-
-		parentID = &id
+func findParentSnapshot(ctx context.Context, repo restic.Repository, opts BackupOptions, targets []string, timeStampLimit time.Time) (*restic.Snapshot, error) {
+	if opts.Force {
+		return nil, nil
 	}
 
-	// Find last snapshot to set it as parent, if not already set
-	if !opts.Force && parentID == nil {
-		id, err := restic.FindLatestSnapshot(ctx, repo, targets, []restic.TagList{}, []string{opts.Host}, &timeStampLimit)
-		if err == nil {
-			parentID = &id
-		} else if err != restic.ErrNoSnapshotFound {
-			return nil, err
-		}
+	snName := opts.Parent
+	if snName == "" {
+		snName = "latest"
+	}
+	f := restic.SnapshotFilter{TimestampLimit: timeStampLimit}
+	if opts.GroupBy.Host {
+		f.Hosts = []string{opts.Host}
+	}
+	if opts.GroupBy.Path {
+		f.Paths = targets
+	}
+	if opts.GroupBy.Tag {
+		f.Tags = []restic.TagList{opts.Tags.Flatten()}
 	}
 
-	return parentID, nil
+	sn, _, err := f.FindLatest(ctx, repo.Backend(), repo, snName)
+	// Snapshot not found is ok if no explicit parent was set
+	if opts.Parent == "" && errors.Is(err, restic.ErrNoSnapshotFound) {
+		err = nil
+	}
+	return sn, err
 }
-func collectRejectFuncs(opts BackupOptions, repo *repository.Repository, targets []string) (fs []RejectFunc, err error) {
+func collectRejectFuncs(opts BackupOptions, targets []string) (fs []RejectFunc, err error) {
 	// allowed devices
 	if opts.ExcludeOtherFS {
 		f, err := rejectByDevice(targets)
@@ -266,7 +278,7 @@ func collectRejectFuncs(opts BackupOptions, repo *repository.Repository, targets
 	return fs, nil
 }
 
-func collectRejectByNameFuncs(opts BackupOptions, repo *repository.Repository, targets []string) (fs []RejectByNameFunc, err error) {
+func collectRejectByNameFuncs(opts BackupOptions, repo *repository.Repository) (fs []RejectByNameFunc, err error) {
 	// exclude restic cache
 	if repo.Cache != nil {
 		f, err := rejectResticCache(repo)
@@ -277,30 +289,11 @@ func collectRejectByNameFuncs(opts BackupOptions, repo *repository.Repository, t
 		fs = append(fs, f)
 	}
 
-	// add patterns from file
-	if len(opts.ExcludeFiles) > 0 {
-		excludes, err := readExcludePatternsFromFiles(opts.ExcludeFiles)
-		if err != nil {
-			return nil, err
-		}
-		opts.Excludes = append(opts.Excludes, excludes...)
+	fsPatterns, err := opts.excludePatternOptions.CollectPatterns()
+	if err != nil {
+		return nil, err
 	}
-
-	if len(opts.InsensitiveExcludeFiles) > 0 {
-		excludes, err := readExcludePatternsFromFiles(opts.InsensitiveExcludeFiles)
-		if err != nil {
-			return nil, err
-		}
-		opts.InsensitiveExcludes = append(opts.InsensitiveExcludes, excludes...)
-	}
-
-	if len(opts.InsensitiveExcludes) > 0 {
-		fs = append(fs, rejectByInsensitivePattern(opts.InsensitiveExcludes))
-	}
-
-	if len(opts.Excludes) > 0 {
-		fs = append(fs, rejectByPattern(opts.Excludes))
-	}
+	fs = append(fs, fsPatterns...)
 
 	if opts.ExcludeCaches {
 		opts.ExcludeIfPresent = append(opts.ExcludeIfPresent, "CACHEDIR.TAG:Signature: 8a477f597d28d172789f06886806bc55")
@@ -316,46 +309,4 @@ func collectRejectByNameFuncs(opts BackupOptions, repo *repository.Repository, t
 	}
 
 	return fs, nil
-}
-
-func readExcludePatternsFromFiles(excludeFiles []string) ([]string, error) {
-	getenvOrDollar := func(s string) string {
-		if s == "$" {
-			return "$"
-		}
-		return os.Getenv(s)
-	}
-
-	var excludes []string
-	for _, filename := range excludeFiles {
-		err := func() (err error) {
-			data, err := textfile.Read(filename)
-			if err != nil {
-				return err
-			}
-
-			scanner := bufio.NewScanner(bytes.NewReader(data))
-			for scanner.Scan() {
-				line := strings.TrimSpace(scanner.Text())
-
-				// ignore empty lines
-				if line == "" {
-					continue
-				}
-
-				// strip comments
-				if strings.HasPrefix(line, "#") {
-					continue
-				}
-
-				line = os.Expand(line, getenvOrDollar)
-				excludes = append(excludes, line)
-			}
-			return scanner.Err()
-		}()
-		if err != nil {
-			return nil, err
-		}
-	}
-	return excludes, nil
 }

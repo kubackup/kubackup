@@ -1,5 +1,5 @@
 {
-  "name": "backup-web",
+  "name": "kubackup-web",
   "version": "1.1.0",
   "description": "backup-web",
   "scripts": {

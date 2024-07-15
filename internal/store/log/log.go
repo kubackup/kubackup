@@ -43,7 +43,7 @@ func (ti *LogInfo) SetSockJSSession(s sockjs.Session) {
 	ti.sockJSSession = s
 }
 func (ti *LogInfo) SendMsg(msg interface{}) {
-	if ti.sockJSSession != nil && ti.sockJSSession.ID() != "" {
+	if ti.sockJSSession != nil && ti.sockJSSession.ID() != "" && msg != "" {
 		go func() {
 			err := ti.sockJSSession.Send(utils.ToJSONString(msg))
 			if err != nil {
