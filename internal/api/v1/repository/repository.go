@@ -80,7 +80,6 @@ func delHanlder() iris.Handler {
 			utils.Errore(ctx, err)
 			return
 		}
-		go resticProxy.InitRepository()
 		ctx.Values().Set("data", "")
 	}
 }

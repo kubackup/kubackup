@@ -150,6 +150,42 @@ func prepareCheckCache(opts CheckOptions, gopts GlobalOptions, spr *wsTaskInfo.S
 	return cleanup
 }
 
+func RunCheckSync(opts CheckOptions, repoid int) error {
+	err := checkFlags(opts)
+	if err != nil {
+		return err
+	}
+	repoHandler, err := GetRepository(repoid)
+	if err != nil {
+		return err
+	}
+	gopts := repoHandler.gopts
+	ctx, cancel := context.WithCancel(gopts.ctx)
+	clean := NewCleanCtx()
+	clean.AddCleanCtx(func() {
+		cancel()
+	})
+	repo := repoHandler.repo
+	if !opts.NoLock {
+		lock, err := lockRepoExclusive(ctx, repo)
+		if err != nil {
+			clean.Cleanup()
+			return err
+		}
+		clean.AddCleanCtx(func() {
+			unlockRepo(lock)
+		})
+	}
+	logTask := log.LogInfo{}
+	logTask.SetId(0)
+	spr := wsTaskInfo.NewSprintf(&logTask)
+	err = check(repo, opts, gopts, ctx, spr)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func RunCheck(opts CheckOptions, repoid int) (int, error) {
 
 	err := checkFlags(opts)
@@ -213,6 +249,7 @@ func RunCheck(opts CheckOptions, repoid int) (int, error) {
 		err := check(repo, opts, gopts, ctx, spr)
 		status = repoModel.StatusNone
 		if err != nil {
+			spr.Append(wsTaskInfo.Error, fmt.Sprintf("error: %v\n", err))
 			status = repoModel.StatusErr
 		} else {
 			status = repoModel.StatusRun

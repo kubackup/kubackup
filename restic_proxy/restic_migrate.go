@@ -47,7 +47,7 @@ func applyMigrations(repoid int, ctx context.Context, opts MigrateOptions, gopts
 				checkGopts := gopts
 				// the repository is already locked
 				checkGopts.NoLock = true
-				_, err = RunCheck(checkOptions, repoid)
+				err = RunCheckSync(checkOptions, repoid)
 				if err != nil {
 					return err
 				}
