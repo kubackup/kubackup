@@ -68,7 +68,7 @@
         <el-col :xs="16" :sm="16" :lg="16" class="card-panel-col">
           <el-card class="box-card">
             <div>
-              <el-input placeholder="输入准确路径，搜索速度会更快，如：/data/test/avator.png" v-model="fileSearch.name"
+              <el-input placeholder="输入准确路径，搜索速度会更快，如：data/test/avator.png" v-model="fileSearch.name"
                         clearable
                         @clear="searchFile"
                         class="input-with-select">
@@ -387,7 +387,7 @@ export default {
               label: node.path,
               type: node.type,
               mode: node.mode,
-              isMore: 2,
+              isMore: 0,
               permissions: node.permissions,
               ctime: node.ctime,
               gid: node.gid,
