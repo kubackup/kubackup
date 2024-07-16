@@ -77,6 +77,7 @@ func RunRebuildIndex(opts RebuildIndexOptions, repoid int) (int, error) {
 		err := rebuildIndex(opts, ctx, repo, spr)
 		status = repoModel.StatusNone
 		if err != nil {
+			spr.Append(wsTaskInfo.Error, err.Error())
 			status = repoModel.StatusErr
 		} else {
 			status = repoModel.StatusRun

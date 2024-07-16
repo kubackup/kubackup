@@ -249,7 +249,7 @@ func RunCheck(opts CheckOptions, repoid int) (int, error) {
 		err := check(repo, opts, gopts, ctx, spr)
 		status = repoModel.StatusNone
 		if err != nil {
-			spr.Append(wsTaskInfo.Error, fmt.Sprintf("error: %v\n", err))
+			spr.Append(wsTaskInfo.Error, err.Error())
 			status = repoModel.StatusErr
 		} else {
 			status = repoModel.StatusRun
