@@ -196,7 +196,7 @@ func RunPrune(opts PruneOptions, repoid int) (int, error) {
 	logTask.SetId(oper.Id)
 	spr := wsTaskInfo.NewSprintf(&logTask)
 
-	logTask.SetBound(make(chan error))
+	logTask.SetBound(make(chan string))
 	log.LogInfos.Set(oper.Id, &logTask)
 	t.Go(func() error {
 		for {
@@ -622,7 +622,7 @@ func decidePackAction(ctx context.Context, opts PruneOptions, repo restic.Reposi
 		p, ok := indexPack[id]
 		if !ok {
 			// Pack was not referenced in index and is not used  => immediately remove!
-			spr.Append(wsTaskInfo.Info, fmt.Sprintf("will remove pack %v as it is unused and not indexed\n", id.Str()))
+			spr.AppendByForce(wsTaskInfo.Info, fmt.Sprintf("will remove pack %v as it is unused and not indexed\n", id.Str()), false)
 			removePacksFirst.Insert(id)
 			stats.size.unref += uint64(packSize)
 			return nil
@@ -632,8 +632,8 @@ func decidePackAction(ctx context.Context, opts PruneOptions, repo restic.Reposi
 			// Pack size does not fit and pack is needed => error
 			// If the pack is not needed, this is no error, the pack can
 			// and will be simply removed, see below.
-			spr.Append(wsTaskInfo.Info, fmt.Sprintf("pack %s: calculated size %d does not match real size %d\nRun 'restic repair index'.\n",
-				id.Str(), p.unusedSize+p.usedSize, packSize))
+			spr.AppendByForce(wsTaskInfo.Info, fmt.Sprintf("pack %s: calculated size %d does not match real size %d\nRun 'restic repair index'.\n",
+				id.Str(), p.unusedSize+p.usedSize, packSize), false)
 			return errorSizeNotMatching
 		}
 

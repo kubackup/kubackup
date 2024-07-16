@@ -261,7 +261,7 @@ export default {
     openSockjs(id) {
       const token = getToken().token
       const that = this
-      if (!this.sock) {
+      if (this.sock === null) {
         this.sock = new SockJS(ws_log + '?token=' + token)
         this.sock.onopen = function () {
           that.sock.send(JSON.stringify({Id: id}))

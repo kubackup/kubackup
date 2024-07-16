@@ -21,7 +21,7 @@ var TaskInfos = &TaskMap{TaskInfos: make(map[int]wsTaskInfo.WsTaskInfo)}
 
 type TaskInfo struct {
 	id            int
-	bound         chan error
+	bound         chan string
 	sockJSSession sockjs.Session
 	Name          string
 	Path          string
@@ -35,15 +35,15 @@ func (ti *TaskInfo) GetId() int {
 func (ti *TaskInfo) SetId(id int) {
 	ti.id = id
 }
-func (ti *TaskInfo) SetBound(c chan error) {
+func (ti *TaskInfo) SetBound(c chan string) {
 	ti.bound = c
 }
-func (ti *TaskInfo) IntoBound(msg error) {
+func (ti *TaskInfo) IntoBound(msg string) {
 	if ti.bound != nil {
 		ti.bound <- msg
 	}
 }
-func (ti *TaskInfo) GetBound() chan error {
+func (ti *TaskInfo) GetBound() chan string {
 	return ti.bound
 }
 func (ti *TaskInfo) SetSockJSSession(s sockjs.Session) {

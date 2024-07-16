@@ -186,7 +186,7 @@ func RunBackup(opts BackupOptions, repoid int, taskinfo task.TaskInfo) error {
 		ParentSnapshot: parentSnapshot,
 		ProgramVersion: "restic " + version,
 	}
-	bound := make(chan error)
+	bound := make(chan string)
 	taskinfo.SetBound(bound)
 	task.TaskInfos.Set(taskinfo.GetId(), &taskinfo)
 	t.Go(func() error {

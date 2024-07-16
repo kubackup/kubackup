@@ -78,6 +78,10 @@ func (sf *Sprintf) AppendForClear(level int, str string, save bool) {
 
 func (sf *Sprintf) SendAllLog() {
 	for i, s := range sf.Sprints {
+		// 只发送最后100条
+		if i < len(sf.Sprints)-100 {
+			continue
+		}
 		if i == len(sf.Sprints)-1 {
 			sf.send(s, true)
 			continue

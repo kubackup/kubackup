@@ -38,7 +38,7 @@ func initSystemCronJob() {
 		fmt.Println(fmt.Errorf("ClearTaskRunning 定时任务启动失败：%s", err))
 	}
 	// 执行清理策略
-	_, err = c.AddJob("15 15 0 * * *", SystemJob(func() {
+	_, err = c.AddJob("15 15 6 * * *", SystemJob(func() {
 		go policy.DoPolicy()
 	}))
 	if err != nil {

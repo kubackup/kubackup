@@ -150,22 +150,16 @@ func prepareCheckCache(opts CheckOptions, gopts GlobalOptions, spr *wsTaskInfo.S
 	return cleanup
 }
 
-func RunCheckSync(opts CheckOptions, repoid int) error {
+func RunCheckSync(ctx context.Context, opts CheckOptions, gopts GlobalOptions, repo *repository.Repository, spr *wsTaskInfo.Sprintf) error {
 	err := checkFlags(opts)
 	if err != nil {
 		return err
 	}
-	repoHandler, err := GetRepository(repoid)
-	if err != nil {
-		return err
-	}
-	gopts := repoHandler.gopts
 	ctx, cancel := context.WithCancel(gopts.ctx)
 	clean := NewCleanCtx()
 	clean.AddCleanCtx(func() {
 		cancel()
 	})
-	repo := repoHandler.repo
 	if !opts.NoLock {
 		lock, err := lockRepoExclusive(ctx, repo)
 		if err != nil {
@@ -176,10 +170,13 @@ func RunCheckSync(opts CheckOptions, repoid int) error {
 			unlockRepo(lock)
 		})
 	}
-	logTask := log.LogInfo{}
-	logTask.SetId(0)
-	spr := wsTaskInfo.NewSprintf(&logTask)
+	if spr == nil {
+		logTask := log.LogInfo{}
+		logTask.SetId(0)
+		spr = wsTaskInfo.NewSprintf(&logTask)
+	}
 	err = check(repo, opts, gopts, ctx, spr)
+	clean.Cleanup()
 	if err != nil {
 		return err
 	}
@@ -230,7 +227,7 @@ func RunCheck(opts CheckOptions, repoid int) (int, error) {
 	logTask.SetId(oper.Id)
 	spr := wsTaskInfo.NewSprintf(&logTask)
 
-	logTask.SetBound(make(chan error))
+	logTask.SetBound(make(chan string))
 	log.LogInfos.Set(oper.Id, &logTask)
 	t.Go(func() error {
 		for {
@@ -287,10 +284,10 @@ func check(repo *repository.Repository, opts CheckOptions, gopts GlobalOptions, 
 	for _, hint := range hints {
 		switch hint.(type) {
 		case *checker.ErrDuplicatePacks, *checker.ErrOldIndexFormat:
-			spr.Append(wsTaskInfo.Info, fmt.Sprintf("%v\n", hint))
+			spr.AppendByForce(wsTaskInfo.Info, fmt.Sprintf("%v\n", hint), false)
 			suggestIndexRebuild = true
 		case *checker.ErrMixedPack:
-			spr.Append(wsTaskInfo.Info, fmt.Sprintf("%v\n", hint))
+			spr.AppendByForce(wsTaskInfo.Info, fmt.Sprintf("%v\n", hint), false)
 			mixedFound = true
 		default:
 			spr.Append(wsTaskInfo.Error, fmt.Sprintf("error: %v\n", hint))
@@ -366,7 +363,7 @@ func check(repo *repository.Repository, opts CheckOptions, gopts GlobalOptions, 
 
 	if opts.CheckUnused {
 		for _, id := range chkr.UnusedBlobs(ctx) {
-			spr.Append(wsTaskInfo.Info, fmt.Sprintf("unused blob %v\n", id))
+			spr.AppendByForce(wsTaskInfo.Info, fmt.Sprintf("unused blob %v\n", id), false)
 			errorsFound = true
 		}
 	}

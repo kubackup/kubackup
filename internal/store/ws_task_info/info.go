@@ -12,10 +12,10 @@ import (
 type WsTaskInfo interface {
 	GetId() int
 	SetId(id int)
-	SetBound(c chan error)
-	GetBound() chan error
+	SetBound(c chan string)
+	GetBound() chan string
 	CloseBound()
-	IntoBound(msg error)
+	IntoBound(msg string)
 	SetSockJSSession(sockjs.Session)
 	SendMsg(msg interface{})
 	CloseSockJSSession(reason string, status uint32)
@@ -67,6 +67,6 @@ func taskHandler(wsTask WsTask) func(session sockjs.Session) {
 		}
 		taskInfo.SetSockJSSession(session)
 		wsTask.Set(id, taskInfo)
-		taskInfo.IntoBound(nil)
+		taskInfo.IntoBound(string(rune(id)))
 	}
 }

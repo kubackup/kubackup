@@ -5,15 +5,18 @@ import (
 	"github.com/kataras/iris/v12/context"
 	"github.com/kubackup/kubackup/internal/entity/v1/repository"
 	"github.com/kubackup/kubackup/internal/service/v1/common"
+	policyDao "github.com/kubackup/kubackup/internal/service/v1/policy"
 	repositoryDao "github.com/kubackup/kubackup/internal/service/v1/repository"
 	"github.com/kubackup/kubackup/pkg/utils"
 	resticProxy "github.com/kubackup/kubackup/restic_proxy"
 	"strconv"
 )
 
+var policyService policyDao.Service
 var repositoryService repositoryDao.Service
 
 func init() {
+	policyService = policyDao.GetService()
 	repositoryService = repositoryDao.GetService()
 }
 
@@ -80,6 +83,7 @@ func delHanlder() iris.Handler {
 			utils.Errore(ctx, err)
 			return
 		}
+		_ = policyService.DeleteByRepo(id, common.DBOptions{})
 		ctx.Values().Set("data", "")
 	}
 }

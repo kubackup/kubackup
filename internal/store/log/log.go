@@ -12,7 +12,7 @@ var LogInfos = &LogMap{TaskInfos: make(map[int]wsTaskInfo.WsTaskInfo)}
 
 type LogInfo struct {
 	id            int
-	bound         chan error
+	bound         chan string
 	sockJSSession sockjs.Session
 	wsTaskInfo.WsTaskInfo
 }
@@ -23,15 +23,15 @@ func (ti *LogInfo) GetId() int {
 func (ti *LogInfo) SetId(id int) {
 	ti.id = id
 }
-func (ti *LogInfo) SetBound(c chan error) {
+func (ti *LogInfo) SetBound(c chan string) {
 	ti.bound = c
 }
-func (ti *LogInfo) IntoBound(msg error) {
+func (ti *LogInfo) IntoBound(msg string) {
 	if ti.bound != nil {
 		ti.bound <- msg
 	}
 }
-func (ti *LogInfo) GetBound() chan error {
+func (ti *LogInfo) GetBound() chan string {
 	return ti.bound
 }
 func (ti *LogInfo) CloseBound() {

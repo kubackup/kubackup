@@ -58,7 +58,7 @@ func RunRebuildIndex(opts RebuildIndexOptions, repoid int) (int, error) {
 	logTask.SetId(oper.Id)
 	spr := wsTaskInfo.NewSprintf(&logTask)
 
-	logTask.SetBound(make(chan error))
+	logTask.SetBound(make(chan string))
 	log.LogInfos.Set(oper.Id, &logTask)
 	t.Go(func() error {
 		for {
