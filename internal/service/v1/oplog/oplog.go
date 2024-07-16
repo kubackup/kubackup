@@ -47,7 +47,7 @@ func (o OperationLog) Search(num, size int, operator, operation, url, data strin
 	if data != "" {
 		ms = append(ms, storm.Like("Data", data))
 	}
-	query := db.Select(ms...).OrderBy("CreatedAt").Reverse()
+	query := db.Select(q.And(ms...)).OrderBy("CreatedAt").Reverse()
 	total, err = query.Count(&oplog.OperationLog{})
 	if err != nil {
 		return

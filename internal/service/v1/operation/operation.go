@@ -56,7 +56,7 @@ func (o Operation) List(repoid, optype int, options common.DBOptions) (operation
 	if optype > 0 {
 		ms = append(ms, q.Eq("Type", optype))
 	}
-	query := db.Select(ms...).OrderBy("CreatedAt").Reverse()
+	query := db.Select(q.And(ms...)).OrderBy("CreatedAt").Reverse()
 	if err = query.Find(&operations); err != nil {
 		return
 	}
@@ -69,7 +69,7 @@ func (o Operation) ListLast(repoid, optype int, options common.DBOptions) (opera
 	var ms []q.Matcher
 	ms = append(ms, q.Eq("RepositoryId", repoid))
 	ms = append(ms, q.Eq("Type", optype))
-	query := db.Select(ms...).OrderBy("CreatedAt").Reverse().Limit(1)
+	query := db.Select(q.And(ms...)).OrderBy("CreatedAt").Reverse().Limit(1)
 	if err = query.First(&operations); err != nil {
 		return
 	}

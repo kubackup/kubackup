@@ -137,7 +137,7 @@
 </template>
 
 <script>
-import {fetchForget, fetchParmsMyList, fetchSnapshotsList} from '@/api/repository'
+import {fetchForget, fetchLastOper, fetchParmsMyList, fetchSnapshotsList} from '@/api/repository'
 import {dateFormat} from "@/utils";
 import {getToken} from "@/utils/auth";
 import Terminal from '@/components/TermLog'
@@ -198,9 +198,11 @@ export default {
   created() {
     this.listQuery.id = this.$route.params && this.$route.params.id
     this.getParmList()
+    this.getLastOper()
   },
   activated() {
     this.getParmList()
+    this.getLastOper()
   },
   methods: {
     getMoreList() {
@@ -249,6 +251,23 @@ export default {
           this.openSockjs(res.data)
         })
       }).catch(() => {
+      })
+    },
+    getLastOper() {
+      fetchLastOper(this.listQuery.id, 4).then(res => {
+        let info = res.data
+        if (!info.logs) {
+          info.logs = []
+        }
+        if (info.status !== 1) {
+          // 仅保留info数据中的最新100条
+          if (info.logs.length > 100) {
+            info.logs = info.logs.slice(info.logs.length - 100)
+          }
+          this.updateLog(info, false)
+        } else {
+          this.openSockjs(info.id)
+        }
       })
     },
     getList() {

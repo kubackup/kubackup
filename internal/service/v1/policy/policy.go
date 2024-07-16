@@ -37,7 +37,7 @@ func (p Policy) DeleteByRepo(repoId int, options common.DBOptions) error {
 		return err
 	}
 	for policy := range policies {
-		err = db.DeleteStruct(policy)
+		err = db.DeleteStruct(&policy)
 		if err != nil {
 			return err
 		}
@@ -49,7 +49,7 @@ func (p Policy) List(options common.DBOptions) (policies []repository.ForgetPoli
 	db := p.GetDB(options)
 	policies = make([]repository.ForgetPolicy, 0)
 	var ms []q.Matcher
-	query := db.Select(ms...).OrderBy("CreatedAt").Reverse()
+	query := db.Select(q.And(ms...)).OrderBy("CreatedAt").Reverse()
 	if err = query.Find(&policies); err != nil {
 		return
 	}
@@ -79,7 +79,7 @@ func (p Policy) Search(repoId int, path string, options common.DBOptions) (polic
 	if path != "" {
 		ms = append(ms, q.Eq("Path", path))
 	}
-	query := db.Select(ms...).OrderBy("CreatedAt").Reverse()
+	query := db.Select(q.And(ms...)).OrderBy("CreatedAt").Reverse()
 	if err = query.Find(&policies); err != nil {
 		return
 	}
