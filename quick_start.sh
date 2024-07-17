@@ -21,7 +21,7 @@ else
     exit 1
 fi
 
-VERSION=$(curl -s https://cos.kubackup.cn/script/latest)
+VERSION=$(curl -s https://kubackup.cn/latest)
 if [[ "y${VERSION}" == "y" ]];then
     echo "获取最新版本失败，请稍候重试"
     exit 1
@@ -59,7 +59,7 @@ function install(){
 package_file_name="kubackup_server_${VERSION}_${os}_${architecture}"
 HASH_FILE_URL="https://gitee.com/kubackup/kubackup/releases/download/${VERSION}/${package_file_name}.sum"
 package_download_url="https://gitee.com/kubackup/kubackup/releases/download/${VERSION}/${package_file_name}"
-service_file_url="https://cos.kubackup.cn/script/kubackup.service"
+service_file_url="https://kubackup.cn/kubackup.service"
 expected_hash=$(curl -s "$HASH_FILE_URL" | awk '{print $1}')
 
 if [ -f ${package_file_name} ];then

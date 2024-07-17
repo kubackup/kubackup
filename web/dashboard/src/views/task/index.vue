@@ -44,7 +44,7 @@
       <el-table-column prop="duration" align="center" :label="'duration' | i18n">
         <template slot-scope="{row}">
           <div>
-            {{ (row.scanner.duration || '0:0') + ' + ' + (row.progress.secondsElapsed || row.summary.totalDuration) }}
+            {{ (row.summary.totalDuration || '0:0') + '(' + (row.scanner.duration || '0:0') + ')' }}
           </div>
         </template>
       </el-table-column>

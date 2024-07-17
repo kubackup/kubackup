@@ -28,6 +28,10 @@ func lsHandler() iris.Handler {
 func upgradeVersionHandler() iris.Handler {
 	return func(ctx *context.Context) {
 		version := ctx.Params().GetString("version")
+		v := kubackup.GetVersion()
+		if v.Version == version {
+			utils.ErrorStr(ctx, "更新版本与当前版本一致")
+		}
 		err := system.Upgrade(version)
 		if err != nil {
 			utils.Errore(ctx, err)
