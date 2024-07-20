@@ -360,7 +360,8 @@ func rebuildIndexFiles(ctx context.Context, repo restic.Repository, removePacks 
 	}
 
 	spr.Append(wsTaskInfo.Info, fmt.Sprintf("deleting obsolete index files\n"))
-	return DeleteFilesChecked(spr, ctx, repo, obsoleteIndexes, restic.IndexFile)
+	DeleteFiles(spr, ctx, repo, obsoleteIndexes, restic.IndexFile)
+	return nil
 }
 
 // planPrune selects which files to rewrite and which to delete and which blobs to keep.

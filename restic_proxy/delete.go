@@ -51,7 +51,7 @@ func deleteFiles(spr *wsTaskInfo.Sprintf, ctxx context.Context, ignoreError bool
 					if !ignoreError {
 						return err
 					}
-					spr.AppendLimit(wsTaskInfo.Error, fmt.Sprintf("remove %v error: %v", h, err))
+					spr.AppendLimit(wsTaskInfo.Warning, fmt.Sprintf("remove %v error: %v", h, err))
 				}
 				pro.Add(1)
 			}

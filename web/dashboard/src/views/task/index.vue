@@ -219,7 +219,7 @@
             </el-row>
           </el-card>
         </el-col>
-        <el-col v-if="taskInfo.status===3 && taskInfo.archivalError" :span="12">
+        <el-col v-if="taskInfo.archivalError" :span="12">
           <el-card class="card-h">
             <div slot="header" class="clearfix">
               <span class="info_title redtext">备份错误</span>
