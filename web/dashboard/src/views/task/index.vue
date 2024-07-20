@@ -44,13 +44,13 @@
       <el-table-column prop="duration" align="center" :label="'duration' | i18n">
         <template slot-scope="{row}">
           <div>
-            {{ (row.summary.totalDuration || '0:0') + '(' + (row.scanner.duration || '0:0') + ')' }}
+            {{ (row.summary.totalDuration || row.progress.secondsElapsed) + '(' + (row.scanner.duration || '0:0') + ')' }}
           </div>
         </template>
       </el-table-column>
       <el-table-column prop="dataAdd" align="center" label="数据">
         <template slot-scope="{row}">
-          {{ row.summary.dataAdded || '0 B' }}
+          {{ row.summary.dataAdded || row.progress.bytesDone }}
         </template>
       </el-table-column>
       <el-table-column prop="path" align="center" :label="'path' | i18n"/>
@@ -64,7 +64,7 @@
           <el-progress
             type="dashboard"
             :width="50"
-            :percentage="row.progress.percentDone?Number((row.progress.percentDone*100).toFixed(0)):0"
+            :percentage="row.progress.percentDone?Number((row.progress.percentDone*100).toFixed(0)):100"
           />
         </template>
       </el-table-column>
