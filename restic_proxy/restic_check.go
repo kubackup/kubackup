@@ -155,7 +155,7 @@ func RunCheckSync(ctx context.Context, opts CheckOptions, gopts GlobalOptions, r
 	if err != nil {
 		return err
 	}
-	ctx, cancel := context.WithCancel(gopts.ctx)
+	ctx, cancel := context.WithCancel(context.Background())
 	clean := NewCleanCtx()
 	clean.AddCleanCtx(func() {
 		cancel()
@@ -194,7 +194,7 @@ func RunCheck(opts CheckOptions, repoid int) (int, error) {
 		return 0, err
 	}
 	gopts := repoHandler.gopts
-	ctx, cancel := context.WithCancel(gopts.ctx)
+	ctx, cancel := context.WithCancel(context.Background())
 	clean := NewCleanCtx()
 	clean.AddCleanCtx(func() {
 		cancel()
@@ -493,9 +493,8 @@ func CheckRepoStatus(repoid int) *restic.Config {
 	if err != nil {
 		return nil
 	}
-	gopts := repoHandler.gopts
 	repo := repoHandler.repo
-	conf, err := restic.LoadConfig(gopts.ctx, repo)
+	conf, err := restic.LoadConfig(context.Background(), repo)
 	if err != nil {
 		return nil
 	}

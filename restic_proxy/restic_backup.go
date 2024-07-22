@@ -62,7 +62,7 @@ func RunBackup(opts BackupOptions, repoid int, taskinfo task.TaskInfo) error {
 	}
 	repo := repoHandler.repo
 
-	ctx, cancel := context.WithCancel(repoHandler.gopts.ctx)
+	ctx, cancel := context.WithCancel(context.Background())
 	clean := NewCleanCtx()
 	clean.AddCleanCtx(func() {
 		cancel()

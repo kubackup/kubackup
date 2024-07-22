@@ -45,7 +45,7 @@ func GetParms(repoid int, hosts []string) (*SnapshotParm, error) {
 	}
 	repo := repoHandler.repo
 
-	ctx, cancel := context.WithCancel(repoHandler.gopts.ctx)
+	ctx, cancel := context.WithCancel(context.Background())
 	clean := NewCleanCtx()
 	clean.AddCleanCtx(func() {
 		cancel()
@@ -86,7 +86,7 @@ func RunSnapshots(opts SnapshotOptions, repoid int, snapshotids []string) ([]int
 	}
 	repo := repoHandler.repo
 
-	ctx, cancel := context.WithCancel(repoHandler.gopts.ctx)
+	ctx, cancel := context.WithCancel(context.Background())
 	clean := NewCleanCtx()
 	clean.AddCleanCtx(func() {
 		cancel()

@@ -7,6 +7,7 @@ import (
 	"github.com/kubackup/kubackup/pkg/utils"
 	"gopkg.in/igm/sockjs-go.v2/sockjs"
 	"net/http"
+	"time"
 )
 
 type WsTaskInfo interface {
@@ -67,6 +68,7 @@ func taskHandler(wsTask WsTask) func(session sockjs.Session) {
 		}
 		taskInfo.SetSockJSSession(session)
 		wsTask.Set(id, taskInfo)
-		taskInfo.IntoBound(string(rune(id)))
+		t := time.Now().Second()
+		taskInfo.IntoBound(string(rune(id + t)))
 	}
 }

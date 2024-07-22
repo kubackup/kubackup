@@ -75,7 +75,7 @@ func RunMigrate(opts MigrateOptions, repoid int, action string) (int, error) {
 		return 0, err
 	}
 	repo := repoHandler.repo
-	ctx, cancel := context.WithCancel(repoHandler.gopts.ctx)
+	ctx, cancel := context.WithCancel(context.Background())
 
 	clean := NewCleanCtx()
 	clean.AddCleanCtx(func() {

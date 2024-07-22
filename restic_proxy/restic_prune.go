@@ -166,7 +166,7 @@ func RunPrune(opts PruneOptions, repoid int) (int, error) {
 		return 0, err
 	}
 
-	ctx, cancel := context.WithCancel(repoHandler.gopts.ctx)
+	ctx, cancel := context.WithCancel(context.Background())
 	clean := NewCleanCtx()
 	clean.AddCleanCtx(func() {
 		cancel()

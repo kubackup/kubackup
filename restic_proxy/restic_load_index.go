@@ -9,9 +9,8 @@ func RunLoadIndex(repoid int) error {
 	if err != nil {
 		return err
 	}
-	gopts := repoHandler.gopts
 	repo := repoHandler.repo
-	ctx, cancel := context.WithCancel(gopts.ctx)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	err = repo.LoadIndex(ctx, nil)
 	if err != nil {

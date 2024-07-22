@@ -27,7 +27,7 @@ func RunRebuildIndex(opts RebuildIndexOptions, repoid int) (int, error) {
 	}
 	repo := repoHandler.repo
 
-	ctx, cancel := context.WithCancel(repoHandler.gopts.ctx)
+	ctx, cancel := context.WithCancel(context.Background())
 	clean := NewCleanCtx()
 	clean.AddCleanCtx(func() {
 		cancel()
