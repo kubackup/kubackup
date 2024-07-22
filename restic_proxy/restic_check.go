@@ -444,7 +444,7 @@ func check(repo *repository.Repository, opts CheckOptions, gopts GlobalOptions, 
 	if errorsFound {
 		return errors.Fatal("repository contains errors")
 	}
-	spr.Append(wsTaskInfo.Info, fmt.Sprintf("no errors were found\n"))
+	spr.Append(wsTaskInfo.Success, fmt.Sprintf("no errors were found\n"))
 
 	return nil
 }
