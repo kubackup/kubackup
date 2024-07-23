@@ -168,8 +168,8 @@
               <span class="info_title bluetext">扫描信息</span>
             </div>
             <el-row :gutter="10">
-              <el-col :span="24"><p>总数据量：{{ taskInfo.scanner.dataSize }}</p></el-col>
-              <el-col :span="24"><p>本次变动文件数量：{{ taskInfo.scanner.totalFiles }}</p></el-col>
+              <el-col :span="24"><p>数据量：{{ taskInfo.scanner.dataSize }}</p></el-col>
+              <el-col :span="24"><p>文件数量：{{ taskInfo.scanner.totalFiles }}</p></el-col>
               <el-col :span="24"><p class="redtext">扫描耗时：{{ taskInfo.scanner.duration }}</p></el-col>
             </el-row>
           </el-card>
@@ -192,7 +192,7 @@
             </div>
             <el-row :gutter="10">
               <el-col :span="8"><p>
-                总数据量：{{ taskInfo.progress.bytesDone ? taskInfo.progress.bytesDone : taskInfo.scanner.dataSize }}</p>
+                处理数据量：{{ taskInfo.progress.bytesDone ? taskInfo.progress.bytesDone : taskInfo.scanner.dataSize }}</p>
               </el-col>
               <el-col :span="8"><p>新增文件夹：{{ taskInfo.summary.dirsNew }}</p></el-col>
               <el-col :span="8"><p>新增文件：{{ taskInfo.summary.filesNew }}</p></el-col>
