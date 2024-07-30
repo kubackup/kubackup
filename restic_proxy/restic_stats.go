@@ -111,7 +111,7 @@ func GetAllRepoStats() {
 	c.Set(key2, backupinfos, cache.WithEx(24*time.Hour))
 	doinglock.Lock()
 	doing = false
-	server.Logger().Debugln("结束执行GetAllRepoStats")
+	server.Logger().Info("结束执行GetAllRepoStats")
 	doinglock.Unlock()
 }
 

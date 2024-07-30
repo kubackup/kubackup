@@ -42,8 +42,9 @@ func createHandler() iris.Handler {
 				return
 			}
 			rep.RepositoryVersion = strconv.Itoa(int(version))
+		} else {
+			rep.RepositoryVersion = strconv.Itoa(int(repo.Config().Version))
 		}
-		rep.RepositoryVersion = strconv.Itoa(int(repo.Config().Version))
 		rep.Status = repository.StatusNone
 		err = repositoryService.Create(&rep, common.DBOptions{})
 		if err != nil {

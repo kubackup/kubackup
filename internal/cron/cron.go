@@ -5,6 +5,7 @@ import (
 	"github.com/kubackup/kubackup/internal/api/v1/policy"
 	"github.com/kubackup/kubackup/internal/api/v1/task"
 	"github.com/kubackup/kubackup/internal/consts"
+	"github.com/kubackup/kubackup/internal/server"
 	resticProxy "github.com/kubackup/kubackup/restic_proxy"
 	"github.com/robfig/cron/v3"
 	"strings"
@@ -25,6 +26,7 @@ func InitCron() {
 func initSystemCronJob() {
 	// 准备首页数据
 	_, err := c.AddJob("0 0 0 * * *", SystemJob(func() {
+		server.Logger().Info("准备首页数据")
 		go resticProxy.GetAllRepoStats()
 	}))
 	if err != nil {
@@ -39,6 +41,7 @@ func initSystemCronJob() {
 	}
 	// 执行清理策略
 	_, err = c.AddJob("0 0 6 * * *", SystemJob(func() {
+		server.Logger().Info("执行清理策略")
 		go policy.DoPolicy()
 	}))
 	if err != nil {
