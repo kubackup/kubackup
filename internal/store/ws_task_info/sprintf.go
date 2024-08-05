@@ -85,6 +85,10 @@ func (sf *Sprintf) SendAllLog() {
 		if s.Clear && sf.Sprints[i+1].Clear {
 			continue
 		}
+		// 只发送最后100条
+		if i < len(sf.Sprints)-100 {
+			continue
+		}
 		sf.send(s, true)
 	}
 }

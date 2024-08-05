@@ -82,7 +82,7 @@ func RunRestore(opts RestoreOptions, repoid int, snapshotid string) error {
 	}
 	repo := repoHandler.repo
 
-	ctx, cancel := context.WithCancel(repoHandler.gopts.ctx)
+	ctx, cancel := context.WithCancel(context.Background())
 	clean := NewCleanCtx()
 	clean.AddCleanCtx(func() {
 		cancel()
@@ -172,7 +172,7 @@ func RunRestore(opts RestoreOptions, repoid int, snapshotid string) error {
 
 	server.Logger().Debugf("restoring %s to %s\n", res.Snapshot().ID().Str(), opts.Target)
 	taskinfoid := ta.Id
-	bound := make(chan error)
+	bound := make(chan string)
 	taskInfo.SetBound(bound)
 	task.TaskInfos.Set(taskInfo.GetId(), &taskInfo)
 	t.Go(func() error {

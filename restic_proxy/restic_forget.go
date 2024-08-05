@@ -91,7 +91,7 @@ func RunForget(opts ForgetOptions, repoid int, snapshotids []string) (int, error
 	}
 	repo := repoHandler.repo
 
-	ctx, cancel := context.WithCancel(repoHandler.gopts.ctx)
+	ctx, cancel := context.WithCancel(context.Background())
 	clean := NewCleanCtx()
 	clean.AddCleanCtx(func() {
 		cancel()
@@ -122,7 +122,7 @@ func RunForget(opts ForgetOptions, repoid int, snapshotids []string) (int, error
 	logTask.SetId(oper.Id)
 	spr := wsTaskInfo.NewSprintf(&logTask)
 
-	logTask.SetBound(make(chan error))
+	logTask.SetBound(make(chan string))
 	log.LogInfos.Set(oper.Id, &logTask)
 	t.Go(func() error {
 		for {

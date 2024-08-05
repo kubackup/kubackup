@@ -74,8 +74,10 @@ func (t *TaskProgress) print(status interface{}, forceUpdate bool) {
 	if !forceUpdate && (time.Since(t.lastUpdate) < t.minUpdatePause || t.minUpdatePause == 0) {
 		return
 	}
-	t.lastUpdate = time.Now()
 	t.task.SendMsg(status)
+	if !forceUpdate {
+		t.lastUpdate = time.Now()
+	}
 }
 
 func (t *TaskProgress) Update(total, processed backup.Counter, errors uint, currentFiles map[string]struct{}, start time.Time, secs uint64) {

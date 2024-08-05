@@ -327,9 +327,6 @@ func forgetHandler() iris.Handler {
 		}
 		id, err := resticProxy.RunForget(opt, repository, snapshotids)
 		if err != nil {
-			if restic.IsAlreadyLocked(err) {
-
-			}
 			utils.Errore(ctx, err)
 			return
 		}

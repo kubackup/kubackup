@@ -126,7 +126,7 @@ func runStats(opts StatsOptions, repoid int, snapshotIDs []string) (*StatsContai
 	}
 	repo := repoHandler.repo
 
-	ctx, cancel := context.WithCancel(repoHandler.gopts.ctx)
+	ctx, cancel := context.WithCancel(context.Background())
 	clean := NewCleanCtx()
 	clean.AddCleanCtx(func() {
 		cancel()

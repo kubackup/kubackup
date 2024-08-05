@@ -10,7 +10,7 @@ import (
 	"github.com/kubackup/kubackup/internal/store/log"
 	wsTaskInfo "github.com/kubackup/kubackup/internal/store/ws_task_info"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/migrations"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/repository"
 	"gopkg.in/tomb.v2"
 )
 
@@ -19,7 +19,7 @@ type MigrateOptions struct {
 	Force bool
 }
 
-func applyMigrations(repoid int, ctx context.Context, opts MigrateOptions, gopts GlobalOptions, repo restic.Repository, action string, spr *wsTaskInfo.Sprintf) error {
+func applyMigrations(ctx context.Context, opts MigrateOptions, gopts GlobalOptions, repo *repository.Repository, action string, spr *wsTaskInfo.Sprintf) error {
 	var firsterr error
 	for _, m := range migrations.All {
 		if m.Name() == action {
@@ -47,7 +47,7 @@ func applyMigrations(repoid int, ctx context.Context, opts MigrateOptions, gopts
 				checkGopts := gopts
 				// the repository is already locked
 				checkGopts.NoLock = true
-				_, err = RunCheck(checkOptions, repoid)
+				err = RunCheckSync(ctx, checkOptions, gopts, repo, spr)
 				if err != nil {
 					return err
 				}
@@ -75,7 +75,7 @@ func RunMigrate(opts MigrateOptions, repoid int, action string) (int, error) {
 		return 0, err
 	}
 	repo := repoHandler.repo
-	ctx, cancel := context.WithCancel(repoHandler.gopts.ctx)
+	ctx, cancel := context.WithCancel(context.Background())
 
 	clean := NewCleanCtx()
 	clean.AddCleanCtx(func() {
@@ -106,7 +106,7 @@ func RunMigrate(opts MigrateOptions, repoid int, action string) (int, error) {
 	logTask.SetId(oper.Id)
 	spr := wsTaskInfo.NewSprintf(&logTask)
 
-	logTask.SetBound(make(chan error))
+	logTask.SetBound(make(chan string))
 	log.LogInfos.Set(oper.Id, &logTask)
 	t.Go(func() error {
 		for {
@@ -123,7 +123,7 @@ func RunMigrate(opts MigrateOptions, repoid int, action string) (int, error) {
 
 	t.Go(func() error {
 		defer clean.Cleanup()
-		err := applyMigrations(repoid, ctx, opts, repoHandler.gopts, repo, action, spr)
+		err := applyMigrations(ctx, opts, repoHandler.gopts, repo, action, spr)
 		status = repoModel.StatusNone
 		if err != nil {
 			spr.Append(wsTaskInfo.Error, err.Error())

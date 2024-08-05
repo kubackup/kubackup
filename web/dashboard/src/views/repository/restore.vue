@@ -68,7 +68,7 @@
         <el-col :xs="16" :sm="16" :lg="16" class="card-panel-col">
           <el-card class="box-card">
             <div>
-              <el-input placeholder="输入准确路径，搜索速度会更快，如：/data/test/avator.png" v-model="fileSearch.name"
+              <el-input placeholder="输入准确路径，搜索速度会更快，如：data/test/avator.png" v-model="fileSearch.name"
                         clearable
                         @clear="searchFile"
                         class="input-with-select">
@@ -387,7 +387,7 @@ export default {
               label: node.path,
               type: node.type,
               mode: node.mode,
-              isMore: 2,
+              isMore: 0,
               permissions: node.permissions,
               ctime: node.ctime,
               gid: node.gid,
@@ -464,7 +464,6 @@ export default {
       if (data.type === 'dir') {
         //root节点点击、文件夹第一次点击，加载第一页数据，设置没有更多状态
         data.pageNum = 1
-        data.isMore = 0
       } else {
         //加载更多
         data.pageNum++
@@ -541,14 +540,14 @@ export default {
               child = parent.data.children
               parent.data.children = this.moveMoretoLast(child, num, size, total)
               if (Number(num) * Number(size) >= total) {
-                parent.data.isMore = 2
+                parent.data.isMore = 0
               }
             }
           } else {
             child = data.children
             data.children = this.moveMoretoLast(child, num, size, total)
             if (Number(num) * Number(size) >= total) {
-              data.isMore = 2
+              data.isMore = 0
             }
           }
         }

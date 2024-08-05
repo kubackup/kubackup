@@ -9,13 +9,14 @@ server:
 data:
   # 是否启用缓存
   noCache: false
-  # 本地缓存目录
-  cacheDir: /root/.kubackup/cache
-  # 数据库目录
-  dbDir: /root/.kubackup/db
+  # 本地缓存目录，默认为配置文件上级目录
+  #cacheDir: /root/.kubackup/cache
+  # 数据库目录，默认为配置文件上级目录
+  #dbDir: /root/.kubackup/db
 logger:
   level: info
-  logPath: /root/.kubackup/log
+  # 默认为配置文件上级目录
+  #logPath: /root/.kubackup/log
 jwt:
   # jwt密钥，请自行修改
   key: dowell

@@ -77,7 +77,7 @@ func (c *Repository) List(repotype int, name string, options common.DBOptions) (
 	if name != "" {
 		ms = append(ms, storm.Like("Name", name))
 	}
-	query := db.Select(ms...).OrderBy("CreatedAt").Reverse()
+	query := db.Select(q.And(ms...)).OrderBy("CreatedAt").Reverse()
 	if err = query.Find(&repositorys); err != nil {
 		return
 	}

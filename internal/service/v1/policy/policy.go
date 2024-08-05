@@ -15,6 +15,7 @@ type Service interface {
 	Search(repoId int, path string, options common.DBOptions) ([]repository.ForgetPolicy, error)
 	Get(id int, options common.DBOptions) (*repository.ForgetPolicy, error)
 	Delete(id int, options common.DBOptions) error
+	DeleteByRepo(repoId int, options common.DBOptions) error
 	Update(policy *repository.ForgetPolicy, options common.DBOptions) error
 	UpdateField(id int, fieldName string, value interface{}, options common.DBOptions) error
 }
@@ -29,11 +30,26 @@ type Policy struct {
 	common.DefaultDBService
 }
 
+func (p Policy) DeleteByRepo(repoId int, options common.DBOptions) error {
+	db := p.GetDB(options)
+	policies, err := p.Search(repoId, "", options)
+	if err != nil {
+		return err
+	}
+	for policy := range policies {
+		err = db.DeleteStruct(&policy)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (p Policy) List(options common.DBOptions) (policies []repository.ForgetPolicy, err error) {
 	db := p.GetDB(options)
 	policies = make([]repository.ForgetPolicy, 0)
 	var ms []q.Matcher
-	query := db.Select(ms...).OrderBy("CreatedAt").Reverse()
+	query := db.Select(q.And(ms...)).OrderBy("CreatedAt").Reverse()
 	if err = query.Find(&policies); err != nil {
 		return
 	}
@@ -63,7 +79,7 @@ func (p Policy) Search(repoId int, path string, options common.DBOptions) (polic
 	if path != "" {
 		ms = append(ms, q.Eq("Path", path))
 	}
-	query := db.Select(ms...).OrderBy("CreatedAt").Reverse()
+	query := db.Select(q.And(ms...)).OrderBy("CreatedAt").Reverse()
 	if err = query.Find(&policies); err != nil {
 		return
 	}
@@ -72,21 +88,21 @@ func (p Policy) Search(repoId int, path string, options common.DBOptions) (polic
 
 func (p Policy) Get(id int, options common.DBOptions) (*repository.ForgetPolicy, error) {
 	db := p.GetDB(options)
-	var rep repository.ForgetPolicy
-	err := db.One("Id", id, &rep)
+	var policy repository.ForgetPolicy
+	err := db.One("Id", id, &policy)
 	if err != nil {
 		return nil, err
 	}
-	return &rep, nil
+	return &policy, nil
 }
 
 func (p Policy) Delete(id int, options common.DBOptions) error {
 	db := p.GetDB(options)
-	rep, err := p.Get(id, options)
+	policy, err := p.Get(id, options)
 	if err != nil {
 		return err
 	}
-	return db.DeleteStruct(rep)
+	return db.DeleteStruct(policy)
 }
 
 func (p Policy) Update(policy *repository.ForgetPolicy, options common.DBOptions) error {

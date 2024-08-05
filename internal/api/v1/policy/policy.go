@@ -69,6 +69,7 @@ func updateHandler() iris.Handler {
 		}
 		forgetPolicy.Value = policy.Value
 		forgetPolicy.Type = policy.Type
+		forgetPolicy.RepositoryId = policy.RepositoryId
 		err = policyService.Update(forgetPolicy, common.DBOptions{})
 		if err != nil {
 			utils.Errore(ctx, err)

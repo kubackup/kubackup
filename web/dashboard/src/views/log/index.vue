@@ -90,9 +90,10 @@ export default {
         {name: '存储库', value: 'repository'},
         {name: '备份计划', value: 'plan'},
         {name: '用户', value: 'user'},
-        {name: '执行备份', value: 'task/backup'},
+        {name: '执行备份', value: 'backup'},
         {name: '执行数据恢复', value: 'restore'},
-        {name: '恢复单个文件', value: 'dump'}
+        {name: '清理策略', value: 'policy'},
+        {name: '数据维护', value: 'restic'}
       ],
       listLoading: false,
       listQuery: {

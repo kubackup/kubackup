@@ -5,7 +5,6 @@ import (
 	"github.com/kubackup/kubackup/internal/consts/global"
 	"github.com/kubackup/kubackup/internal/consts/system_status"
 	"github.com/kubackup/kubackup/internal/server"
-	fileutil "github.com/kubackup/kubackup/pkg/file"
 	"github.com/kubackup/kubackup/pkg/utils/cmd"
 	"github.com/kubackup/kubackup/pkg/utils/http"
 	"os"
@@ -47,25 +46,35 @@ func Upgrade(version string) error {
 		defer func() {
 			_ = os.Remove(upgradeDir)
 		}()
-		err = fileutil.CopyFile(path.Join(upgradeDir, "kubackup_server"), path.Join("/usr/local/bin", "kubackup_server"))
+		newFile := path.Join(upgradeDir, "kubackup_server")
+		oldFile := "/usr/local/bin/kubackup_server"
+		err = os.Remove(oldFile)
+		if err != nil {
+			server.Logger().Errorf("kubackup_server更新失败，错误：%v", err)
+			server.UpdateSystemStatus(system_status.Normal)
+			return
+		}
+		err = os.Rename(newFile, oldFile)
 		if err != nil {
 			server.Logger().Errorf("kubackup_server更新失败，错误：%v", err)
 			server.UpdateSystemStatus(system_status.Normal)
 			return
 		}
 		if runtime.GOOS == "linux" {
-			err = fileutil.CopyFile(path.Join(upgradeDir, "kubackup.service"), path.Join("/etc/systemd/system", "kubackup.service"))
-			if err != nil {
-				server.Logger().Errorf("kubackup.service更新失败，错误：%v", err)
-				server.UpdateSystemStatus(system_status.Normal)
-				return
-			}
+			_ = os.Remove("/etc/systemd/system/kubackup.service")
+			_ = os.Rename(path.Join(upgradeDir, "kubackup.service"), "/etc/systemd/system/kubackup.service")
 		}
-		server.Logger().Println("更新成功")
-		_, _ = cmd.ExecWithTimeOut("chmod +x "+path.Join("/usr/local/bin", "kubackup_server"), 1*time.Minute)
+		mode := os.FileMode(0755)
+		err = os.Chmod(oldFile, mode)
+		if err != nil {
+			server.Logger().Errorf("kubackup_server更新失败，错误：%v", err)
+			server.UpdateSystemStatus(system_status.Normal)
+			return
+		}
 		if runtime.GOOS == "linux" {
 			_, _ = cmd.ExecWithTimeOut("systemctl daemon-reload && systemctl restart kubackup.service", 2*time.Minute)
 		}
+		server.Logger().Println("更新成功")
 		server.UpdateSystemStatus(system_status.Normal)
 	}()
 	return nil

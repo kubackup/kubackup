@@ -47,7 +47,7 @@ func (t Task) Search(num, size, status, RepositoryId, planId int, path, name str
 	if name != "" {
 		ms = append(ms, storm.Like("Name", name))
 	}
-	query := db.Select(ms...).OrderBy("CreatedAt").Reverse()
+	query := db.Select(q.And(ms...)).OrderBy("CreatedAt").Reverse()
 	total, err = query.Count(&task.Task{})
 	if err != nil {
 		_ = db.Drop(&task.Task{})

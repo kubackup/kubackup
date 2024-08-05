@@ -45,7 +45,7 @@ func (p Plan) Search(num, size, status, RepositoryId int, path, name string, opt
 	if name != "" {
 		ms = append(ms, storm.Like("Name", name))
 	}
-	query := db.Select(ms...).OrderBy("CreatedAt").Reverse()
+	query := db.Select(q.And(ms...)).OrderBy("CreatedAt").Reverse()
 	count, err = query.Count(&plan.Plan{})
 	if err != nil {
 		return
@@ -80,7 +80,7 @@ func (p Plan) List(status int, options common.DBOptions) ([]plan.Plan, error) {
 	if status > 0 {
 		ms = append(ms, q.Eq("Status", status))
 	}
-	query := db.Select(ms...).OrderBy("CreatedAt").Reverse()
+	query := db.Select(q.And(ms...)).OrderBy("CreatedAt").Reverse()
 	repositorys := make([]plan.Plan, 0)
 	if err := query.Find(&repositorys); err != nil {
 		return nil, err

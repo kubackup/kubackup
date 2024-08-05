@@ -27,7 +27,7 @@ func RunRebuildIndex(opts RebuildIndexOptions, repoid int) (int, error) {
 	}
 	repo := repoHandler.repo
 
-	ctx, cancel := context.WithCancel(repoHandler.gopts.ctx)
+	ctx, cancel := context.WithCancel(context.Background())
 	clean := NewCleanCtx()
 	clean.AddCleanCtx(func() {
 		cancel()
@@ -58,7 +58,7 @@ func RunRebuildIndex(opts RebuildIndexOptions, repoid int) (int, error) {
 	logTask.SetId(oper.Id)
 	spr := wsTaskInfo.NewSprintf(&logTask)
 
-	logTask.SetBound(make(chan error))
+	logTask.SetBound(make(chan string))
 	log.LogInfos.Set(oper.Id, &logTask)
 	t.Go(func() error {
 		for {
@@ -77,6 +77,7 @@ func RunRebuildIndex(opts RebuildIndexOptions, repoid int) (int, error) {
 		err := rebuildIndex(opts, ctx, repo, spr)
 		status = repoModel.StatusNone
 		if err != nil {
+			spr.Append(wsTaskInfo.Error, err.Error())
 			status = repoModel.StatusErr
 		} else {
 			status = repoModel.StatusRun
