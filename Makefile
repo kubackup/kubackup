@@ -55,4 +55,4 @@ build_image:
 	docker buildx build -t kubackup/kubackup:${VERSION} -t kubackup/kubackup:latest --platform=linux/arm64,linux/amd64 . --push
 
 build_demo:
-	docker build -t kubackup/kubackup:demo .
+	docker build -t kubackup/kubackup:demo --platform=linux/amd64 . --push
