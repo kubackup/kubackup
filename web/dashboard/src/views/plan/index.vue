@@ -108,7 +108,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="状态" prop="status">
-          <el-select v-model="temp.status" placeholder="请选择">
+          <el-select v-model="temp.status" placeholder="请选择" disabled>
             <el-option v-for="item in status" :key="item.status" :label="item.name" :value="item.status"/>
           </el-select>
         </el-form-item>
