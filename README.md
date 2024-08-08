@@ -1,4 +1,4 @@
-<p align="center"><a target="_blank" href="https://kubackup.cn"><img src="https://cos.kubackup.cn/img/kubackup-bar.png" alt="Kubackup" width="300" /></a></p>
+<p align="center"><a target="_blank" href="https://kubackup.cn"><img src="https://kubackup.cn/img/kubackup-bar.png" alt="Kubackup" width="300" /></a></p>
 <p align="center"><b>简单、开源、现代化的Restic Web UI</b></p>
 <p align="center">
   <a target="_blank" href="https://github.com/kubackup/kubackup"><img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/kubackup/kubackup?style=flat&logo=github"></a>
@@ -38,7 +38,7 @@
 ## 页面预览
 
 <p align="center">
-    <img style="box-shadow: 0 0 10px rgba(0,0,0,0.5);border-radius: 5px;" src="https://cos.kubackup.cn/img/index.png" alt="index"/>
+    <img style="box-shadow: 0 0 10px rgba(0,0,0,0.5);border-radius: 5px;" src="https://kubackup.cn/img/index.png" alt="index"/>
 </p>
 
 ## GitHub Star 趋势图

@@ -1,6 +1,6 @@
 # Kubackup
 
-<p align="center"><a href="https://kubackup.cn" target="_blank"><img src="https://cos.kubackup.cn/img/kubackup-bar.png" alt="Kubackup" width="300" /></a></p>
+<p align="center"><a href="https://kubackup.cn" target="_blank"><img src="https://kubackup.cn/img/kubackup-bar.png" alt="Kubackup" width="300" /></a></p>
 <p align="center"><b>A Simple, Open-Source, and Modern Web UI for Restic</b></p>
 <p align="center">
   <a href="https://github.com/kubackup/kubackup" target="_blank"><img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/kubackup/kubackup?style=flat&logo=github"></a>
@@ -48,7 +48,7 @@ password：```8aqxUYPt```
 ## Preview
 
 <p align="center">
-    <img style="box-shadow: 0 0 10px rgba(0,0,0,0.5);border-radius: 5px;" src="https://cos.kubackup.cn/img/index.png" alt="Index"/>
+    <img style="box-shadow: 0 0 10px rgba(0,0,0,0.5);border-radius: 5px;" src="https://kubackup.cn/img/index.png" alt="Index"/>
 </p>
 
 ## GitHub Stargazers over time
