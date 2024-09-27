@@ -15,16 +15,16 @@
       </el-col>
       <el-col :xs="12" :sm="12" :lg="8" class="card-panel-col">
         <panel
-          :start-val="1"
-          :end-val="backupinfo.dataSizeStrNum"
+          :countto="false"
           text="数据量"
-          :suffix="backupinfo.dataSizeStrUnit"
+          :cvalue="backupinfo.dataStr"
           icon="el-icon-s-data"
           icon-color="icon-blue"
         />
       </el-col>
       <el-col :xs="12" :sm="12" :lg="8" class="card-panel-col">
-        <panel :start-val="1" :end-val="backupinfo.fileTotal" text="文件数量" icon-color="icon-red" icon="el-icon-files"/>
+        <panel :start-val="1" :end-val="backupinfo.fileTotal" text="文件数量" icon-color="icon-red"
+               icon="el-icon-files"/>
       </el-col>
       <el-col :xs="12" :sm="12" :lg="8" class="card-panel-col">
         <panel
@@ -106,6 +106,10 @@ export default {
         backupinfo.dataDayUnit = backupinfo.dataDay.split(' ')[1]
         backupinfo.dataSizeStrNum = Number(backupinfo.dataSizeStr.split(' ')[0])
         backupinfo.dataSizeStrUnit = backupinfo.dataSizeStr.split(' ')[1]
+        backupinfo.TotalUncompressedSizeStrNum = Number(backupinfo.TotalUncompressedSizeStr.split(' ')[0])
+        backupinfo.TotalUncompressedSizeStrUnit = backupinfo.TotalUncompressedSizeStr.split(' ')[1]
+        backupinfo.dataStr = backupinfo.TotalUncompressedSizeStrNum + backupinfo.TotalUncompressedSizeStrUnit + '(' + backupinfo.dataSizeStrNum + backupinfo.dataSizeStrUnit +
+          ')-' + backupinfo.compressionSpaceSaving + '%'
         this.backupinfo = backupinfo
         this.planinfo = planinfo
         this.repoinfo = repoinfo

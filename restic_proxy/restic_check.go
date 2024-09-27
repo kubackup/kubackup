@@ -275,7 +275,7 @@ func check(repo *repository.Repository, opts CheckOptions, gopts GlobalOptions, 
 	}
 
 	spr.Append(wsTaskInfo.Info, fmt.Sprintf("load indexes\n"))
-	pro := newProgressMax(true, 0, "files deleted", spr)
+	pro := newProgressMax(true, 0, "index files", spr)
 	hints, errs := chkr.LoadIndex(ctx, pro)
 
 	errorsFound := false
