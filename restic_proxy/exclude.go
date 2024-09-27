@@ -7,7 +7,6 @@ import (
 	"github.com/kubackup/kubackup/internal/server"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/textfile"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/ui"
-	"github.com/spf13/pflag"
 	"io"
 	"os"
 	"path/filepath"
@@ -438,13 +437,6 @@ type excludePatternOptions struct {
 	InsensitiveExcludes     []string
 	ExcludeFiles            []string
 	InsensitiveExcludeFiles []string
-}
-
-func initExcludePatternOptions(f *pflag.FlagSet, opts *excludePatternOptions) {
-	f.StringArrayVarP(&opts.Excludes, "exclude", "e", nil, "exclude a `pattern` (can be specified multiple times)")
-	f.StringArrayVar(&opts.InsensitiveExcludes, "iexclude", nil, "same as --exclude `pattern` but ignores the casing of filenames")
-	f.StringArrayVar(&opts.ExcludeFiles, "exclude-file", nil, "read exclude patterns from a `file` (can be specified multiple times)")
-	f.StringArrayVar(&opts.InsensitiveExcludeFiles, "iexclude-file", nil, "same as --exclude-file but ignores casing of `file`names in patterns")
 }
 
 func (opts *excludePatternOptions) Empty() bool {

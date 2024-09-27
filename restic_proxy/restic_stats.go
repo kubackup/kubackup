@@ -8,6 +8,7 @@ import (
 	"github.com/kubackup/kubackup/internal/model"
 	"github.com/kubackup/kubackup/internal/server"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/crypto"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/walker"
 	"github.com/kubackup/kubackup/pkg/utils"
@@ -38,9 +39,6 @@ func GetAllRepoStats() {
 	doing = true
 	doinglock.Unlock()
 	startime := time.Now()
-	opts := StatsOptions{
-		countMode: countModeRestoreSize,
-	}
 	var t tomb.Tomb
 	backupinfos := make([]model.BackupInfo, 0)
 	maxDay := uint64(0)
@@ -53,29 +51,33 @@ func GetAllRepoStats() {
 				return err
 			}
 			daysec := uint64(0)
-			fileTotal := 0
-			dataSize := uint64(0)
 			if len(snapshots) > 0 {
 				snres := snapshots[len(snapshots)-1].(SnapshotRes)
 				daysec = uint64(time.Since(snres.Time) / time.Second)
 				if daysec > maxDay {
 					maxDay = daysec
 				}
-				stats, err := runStats(opts, repoi.repoId, []string{snres.ShortID})
-				if err != nil {
-					server.Logger().Error(err)
-					return err
-				}
-				fileTotal = int(stats.TotalFileCount)
-				dataSize = stats.TotalSize
+			}
+			stats, err := runStats(StatsOptions{countMode: countModeUniqueFilesByContents}, repoi.repoId, []string{})
+			if err != nil {
+				server.Logger().Error(err)
+				return err
+			}
+			stats2, err := runStats(StatsOptions{countMode: countModeRawData}, repoi.repoId, []string{})
+			if err != nil {
+				server.Logger().Error(err)
+				return err
 			}
 			backupinfo := model.BackupInfo{
-				RepositoryName: repoi.repoName,
-				FileTotal:      fileTotal,
-				DataDay:        utils.FormatDay(daysec),
-				DataSize:       dataSize,
-				DataSizeStr:    utils.FormatBytes(dataSize),
-				SnapshotsNum:   len(snapshots),
+				RepositoryName:           repoi.repoName,
+				FileTotal:                int(stats.TotalFileCount),
+				DataDay:                  utils.FormatDay(daysec),
+				DataSize:                 stats2.TotalSize,
+				DataSizeStr:              utils.FormatBytes(stats2.TotalSize),
+				SnapshotsNum:             stats.SnapshotsCount,
+				CompressionSpaceSaving:   fmt.Sprintf("%.2f", stats2.CompressionSpaceSaving),
+				TotalUncompressedSize:    stats2.TotalUncompressedSize,
+				TotalUncompressedSizeStr: utils.FormatBytes(stats2.TotalUncompressedSize),
 			}
 			backupinfos = append(backupinfos, backupinfo)
 			return nil
@@ -88,21 +90,26 @@ func GetAllRepoStats() {
 	filet := 0
 	snapn := 0
 	datas := uint64(0)
+	uncompressed := uint64(0)
 
 	for _, b := range backupinfos {
 		filet = filet + b.FileTotal
 		snapn = snapn + b.SnapshotsNum
 		datas = datas + b.DataSize
+		uncompressed = uncompressed + b.TotalUncompressedSize
 	}
 	duration := utils.FormatDuration(time.Since(startime))
 	backupinfo := model.BackupInfo{
-		FileTotal:    filet,
-		DataDay:      utils.FormatDay(maxDay),
-		DataSize:     datas,
-		DataSizeStr:  utils.FormatBytes(datas),
-		SnapshotsNum: snapn,
-		Time:         time.Now(),
-		Duration:     duration,
+		FileTotal:                filet,
+		DataDay:                  utils.FormatDay(maxDay),
+		DataSize:                 datas,
+		DataSizeStr:              utils.FormatBytes(datas),
+		CompressionSpaceSaving:   fmt.Sprintf("%.2f", (1-float64(datas)/float64(uncompressed))*100),
+		TotalUncompressedSize:    uncompressed,
+		TotalUncompressedSizeStr: utils.FormatBytes(uncompressed),
+		SnapshotsNum:             snapn,
+		Time:                     time.Now(),
+		Duration:                 duration,
 	}
 	key1 := consts.Key("GetAllRepoStats", "backupinfo")
 	key2 := consts.Key("GetAllRepoStats", "backupinfos")
@@ -111,7 +118,7 @@ func GetAllRepoStats() {
 	c.Set(key2, backupinfos, cache.WithEx(24*time.Hour))
 	doinglock.Lock()
 	doing = false
-	server.Logger().Debugln("结束执行GetAllRepoStats")
+	server.Logger().Info("结束执行GetAllRepoStats")
 	doinglock.Unlock()
 }
 
@@ -132,9 +139,6 @@ func runStats(opts StatsOptions, repoid int, snapshotIDs []string) (*StatsContai
 		cancel()
 	})
 	defer clean.Cleanup()
-	//if err = LoadIndex(ctx, repo); err != nil {
-	//	return nil, err
-	//}
 	snapshotLister, err := backend.MemorizeList(ctx, repo.Backend(), restic.SnapshotFile)
 	if err != nil {
 		return nil, err
@@ -142,10 +146,9 @@ func runStats(opts StatsOptions, repoid int, snapshotIDs []string) (*StatsContai
 	// create a container for the stats (and other needed state)
 	stats := &StatsContainer{
 		uniqueFiles:    make(map[fileID]struct{}),
-		uniqueInodes:   make(map[uint64]struct{}),
 		fileBlobs:      make(map[string]restic.IDSet),
 		blobs:          restic.NewBlobSet(),
-		snapshotsCount: 0,
+		SnapshotsCount: 0,
 	}
 
 	for sn := range FindFilteredSnapshots(ctx, snapshotLister, repo, &opts.SnapshotFilter, snapshotIDs) {
@@ -158,12 +161,26 @@ func runStats(opts StatsOptions, repoid int, snapshotIDs []string) (*StatsContai
 	if opts.countMode == countModeRawData {
 		// the blob handles have been collected, but not yet counted
 		for blobHandle := range stats.blobs {
-			blobSize, found := repo.LookupBlobSize(blobHandle.ID, blobHandle.Type)
-			if !found {
+			pbs := repo.Index().Lookup(blobHandle)
+			if len(pbs) == 0 {
 				return nil, fmt.Errorf("blob %v not found", blobHandle)
 			}
-			stats.TotalSize += uint64(blobSize)
+			stats.TotalSize += uint64(pbs[0].Length)
+			if repo.Config().Version >= 2 {
+				stats.TotalUncompressedSize += uint64(crypto.CiphertextLength(int(pbs[0].DataLength())))
+				if pbs[0].IsCompressed() {
+					stats.TotalCompressedBlobsSize += uint64(pbs[0].Length)
+					stats.TotalCompressedBlobsUncompressedSize += uint64(crypto.CiphertextLength(int(pbs[0].DataLength())))
+				}
+			}
 			stats.TotalBlobCount++
+		}
+		if stats.TotalCompressedBlobsSize > 0 {
+			stats.CompressionRatio = float64(stats.TotalCompressedBlobsUncompressedSize) / float64(stats.TotalCompressedBlobsSize)
+		}
+		if stats.TotalUncompressedSize > 0 {
+			stats.CompressionProgress = float64(stats.TotalCompressedBlobsUncompressedSize) / float64(stats.TotalUncompressedSize) * 100
+			stats.CompressionSpaceSaving = (1 - float64(stats.TotalSize)/float64(stats.TotalUncompressedSize)) * 100
 		}
 	}
 	return stats, nil
@@ -174,7 +191,7 @@ func statsWalkSnapshot(statsOptions StatsOptions, ctx context.Context, snapshot 
 		return fmt.Errorf("snapshot %s has nil tree", snapshot.ID().Str())
 	}
 
-	stats.snapshotsCount++
+	stats.SnapshotsCount++
 
 	if statsOptions.countMode == countModeRawData {
 		// count just the sizes of unique blobs; we don't need to walk the tree
@@ -182,7 +199,8 @@ func statsWalkSnapshot(statsOptions StatsOptions, ctx context.Context, snapshot 
 		return restic.FindUsedBlobs(ctx, repo, restic.IDs{*snapshot.Tree}, stats.blobs, nil)
 	}
 
-	err := walker.Walk(ctx, repo, *snapshot.Tree, restic.NewIDSet(), statsWalkTree(statsOptions, repo, stats))
+	uniqueInodes := make(map[uint64]struct{})
+	err := walker.Walk(ctx, repo, *snapshot.Tree, restic.NewIDSet(), statsWalkTree(statsOptions, repo, stats, uniqueInodes))
 	if err != nil {
 		return fmt.Errorf("walking tree %s: %v", *snapshot.Tree, err)
 	}
@@ -190,7 +208,7 @@ func statsWalkSnapshot(statsOptions StatsOptions, ctx context.Context, snapshot 
 	return nil
 }
 
-func statsWalkTree(statsOptions StatsOptions, repo restic.Repository, stats *StatsContainer) walker.WalkFunc {
+func statsWalkTree(statsOptions StatsOptions, repo restic.Repository, stats *StatsContainer, uniqueInodes map[uint64]struct{}) walker.WalkFunc {
 	return func(parentTreeID restic.ID, npath string, node *restic.Node, nodeErr error) (bool, error) {
 		if nodeErr != nil {
 			return true, nodeErr
@@ -249,8 +267,8 @@ func statsWalkTree(statsOptions StatsOptions, repo restic.Repository, stats *Sta
 
 			// if inodes are present, only count each inode once
 			// (hard links do not increase restore size)
-			if _, ok := stats.uniqueInodes[node.Inode]; !ok || node.Inode == 0 {
-				stats.uniqueInodes[node.Inode] = struct{}{}
+			if _, ok := uniqueInodes[node.Inode]; !ok || node.Inode == 0 {
+				uniqueInodes[node.Inode] = struct{}{}
 				stats.TotalSize += node.Size
 			}
 
@@ -289,17 +307,21 @@ func verifyStatsInput(options StatsOptions) error {
 // to collect information about it, as well as state needed
 // for a successful and efficient walk.
 type StatsContainer struct {
-	TotalSize      uint64 `json:"total_size"`
-	TotalFileCount uint64 `json:"total_file_count"`
-	TotalBlobCount uint64 `json:"total_blob_count,omitempty"`
+	TotalSize                            uint64  `json:"total_size"`
+	TotalUncompressedSize                uint64  `json:"total_uncompressed_size,omitempty"`
+	TotalCompressedBlobsSize             uint64  `json:"-"`
+	TotalCompressedBlobsUncompressedSize uint64  `json:"-"`
+	CompressionRatio                     float64 `json:"compression_ratio,omitempty"`
+	CompressionProgress                  float64 `json:"compression_progress,omitempty"`
+	CompressionSpaceSaving               float64 `json:"compression_space_saving,omitempty"`
+	TotalFileCount                       uint64  `json:"total_file_count,omitempty"`
+	TotalBlobCount                       uint64  `json:"total_blob_count,omitempty"`
+	// holds count of all considered snapshots
+	SnapshotsCount int `json:"snapshots_count"`
 
 	// uniqueFiles marks visited files according to their
 	// contents (hashed sequence of content blob IDs)
 	uniqueFiles map[fileID]struct{}
-
-	// uniqueInodes marks visited files according to their
-	// inode # (hashed sequence of inode numbers)
-	uniqueInodes map[uint64]struct{}
 
 	// fileBlobs maps a file name (path) to the set of
 	// blobs that have been seen as a part of the file
@@ -308,9 +330,6 @@ type StatsContainer struct {
 	// blobs is used to count individual unique blobs,
 	// independent of references to files
 	blobs restic.BlobSet
-
-	// holds count of all considered snapshots
-	snapshotsCount int
 }
 
 // fileID is a 256-bit hash that distinguishes unique files.

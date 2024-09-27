@@ -171,7 +171,7 @@ func DoPolicy() {
 			if err != nil {
 				server.Logger().Error(err)
 			}
-			server.Logger().Infof("清理 %s下%s， 保留最新 %d %s 快照", rep.Name, policy.Path, policy.Value, policy.Type)
+			server.Logger().Infof("清理 %s 下 %s ， 保留最新 %d %s 快照", rep.Name, policy.Path, policy.Value, policy.Type)
 		}
 	}
 }
