@@ -7,7 +7,7 @@
              label-position="left">
 
       <div class="title-container">
-        <h3 class="title">系统登录</h3>
+        <h3 class="title">{{ $t('msg.login.title') }}</h3>
       </div>
 
       <el-form-item prop="username">
@@ -17,7 +17,7 @@
         <el-input
           ref="username"
           v-model="loginForm.username"
-          placeholder="用户名"
+          :placeholder="$t('msg.login.username')"
           name="username"
           type="text"
           tabindex="1"
@@ -26,7 +26,7 @@
         />
       </el-form-item>
 
-      <el-tooltip v-model="capsTooltip" content="大写锁定已开启" placement="right" manual>
+      <el-tooltip v-model="capsTooltip" :content="$t('msg.login.caps')" placement="right" manual>
         <el-form-item prop="password">
           <span class="svg-container">
             <svg-icon icon-class="password"/>
@@ -36,7 +36,7 @@
             ref="password"
             v-model="loginForm.password"
             :type="passwordType"
-            placeholder="密码"
+            :placeholder="$t('msg.login.password')"
             name="password"
             tabindex="2"
             clearable
@@ -50,15 +50,29 @@
           </span>
         </el-form-item>
       </el-tooltip>
-      <p class="forget">
-        <el-link type="primary" target="_blank" href="https://kubackup.cn/user_manual/user/#_4">忘记密码</el-link>
-      </p>
+      <div style="display: flex;justify-content: space-between;align-content: center;">
+        <el-dropdown class="right-menu-item hover-effect" @command="switchLang" style="line-height: 50px;height: 50px;font-size: 15px">
+          <span class="el-dropdown-link">
+            {{ options[this.$i18n.locale] }}<i class="el-icon-arrow-down el-icon--right"></i>
+          </span>
+          <el-dropdown-menu>
+            <el-dropdown-item command="zh-CN">中文</el-dropdown-item>
+            <el-dropdown-item command="en-US">English</el-dropdown-item>
+          </el-dropdown-menu>
+        </el-dropdown>
+        <p class="forget">
+          <el-link type="primary" target="_blank" href="https://kubackup.cn/user_manual/user/#_4">
+            {{ $t('msg.login.forgotPassword') }}
+          </el-link>
+        </p>
+      </div>
+
       <el-button :loading="loading" type="primary" style="width:100%;margin-bottom:30px;"
-                 @click.native.prevent="handleLogin">登录
+                 @click.native.prevent="handleLogin">{{ $t('msg.login.login') }}
       </el-button>
     </el-form>
     <div class="el-footer footer">
-      技术支持：
+      {{ $t('msg.login.support') }}:
       <el-link href="https://kubackup.cn" type="primary" :underline="false" target="_blank">酷备份 Kubackup</el-link>
       <p>{{ version }}</p>
     </div>
@@ -68,20 +82,21 @@
 <script>
 import {title, title_en} from "@/settings";
 import {fetchVersion} from "@/api/system";
+import getPageTitle from "@/utils/get-page-title";
 
 export default {
   name: 'Login',
   data() {
     const validateUsername = (rule, value, callback) => {
       if (!value) {
-        callback(new Error('请输入用户名'))
+        callback(new Error(this.$t('msg.tips.usernameError')));
       } else {
         callback()
       }
     }
     const validatePassword = (rule, value, callback) => {
       if (value.length < 6) {
-        callback(new Error('密码长度不能小于6位'))
+        callback(new Error(this.$t('msg.tips.passwordError')))
       } else {
         callback()
       }
@@ -98,6 +113,10 @@ export default {
       loginRules: {
         username: [{required: true, trigger: 'blur', validator: validateUsername}],
         password: [{required: true, trigger: 'blur', validator: validatePassword}]
+      },
+      options: {
+        'zh-CN': '中文',
+        'en-US': 'English'
       },
       passwordType: 'password',
       capsTooltip: false,
@@ -139,6 +158,11 @@ export default {
         this.version = v.version
       })
     },
+    switchLang(cmd) {
+      this.$i18n.locale = cmd
+      localStorage.setItem('locale', this.$i18n.locale)
+      document.title = getPageTitle(this.$t(this.$route.meta.title))
+    },
     showPwd() {
       if (this.passwordType === 'password') {
         this.passwordType = ''
@@ -179,10 +203,10 @@ export default {
     },
     // 验证码登录
     handleCode() {
-      this.$prompt('请输入二次验证码', '验证码', {
-        cancelButtonText: '取消',
+      this.$prompt(this.$t('msg.tips.captchaMsg'), this.$t('msg.login.captcha'), {
+        cancelButtonText: this.$t('msg.cancel'),
         inputPattern: /^\d{6,}$/,
-        inputErrorMessage: '验证码格式错误'
+        inputErrorMessage: this.$t('msg.tips.captchaError')
       }).then(({value}) => {
         this.loginForm.code = value
         this.handleLogin()
@@ -273,6 +297,14 @@ $light_gray: $menuHover;
     margin: 110px auto;
     overflow: hidden;
 
+    .el-dropdown-link {
+      cursor: pointer;
+      color: #409EFF;
+    }
+
+    .el-icon-arrow-down {
+      font-size: 12px;
+    }
     .forget {
       text-align: right;
     }

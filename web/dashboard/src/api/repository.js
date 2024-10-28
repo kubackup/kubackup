@@ -76,6 +76,13 @@ export function fetchParmsMyList(id) {
   })
 }
 
+export function fetchLoadIndex(id) {
+  return request({
+    url: `/restic/${id}/loadIndex`,
+    method: 'get'
+  })
+}
+
 export function fetchCheck(repo) {
   return request({
     url: `/restic/${repo}/check`,

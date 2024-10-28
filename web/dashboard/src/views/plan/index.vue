@@ -2,26 +2,26 @@
   <div class="app-container">
     <div class="handle-search">
       <el-form :model="listQuery" inline @submit.native.prevent>
-        <el-form-item label="名称">
+        <el-form-item :label="$t('msg.name')">
           <el-input v-model="listQuery.name" placeholder="name" style="width: 150px;" class="filter-item" clearable/>
         </el-form-item>
-        <el-form-item :label="'path' | i18n">
+        <el-form-item :label="$t('msg.path')">
           <el-input v-model="listQuery.path" placeholder="path" style="width: 150px;" class="filter-item" clearable/>
         </el-form-item>
-        <el-form-item label="存储库">
-          <el-select v-model="listQuery.repositoryId" class="handle-select mr5" clearable placeholder="请选择">
+        <el-form-item :label="$t('msg.repository')">
+          <el-select v-model="listQuery.repositoryId" class="handle-select mr5" clearable :placeholder="$t('msg.pleaseSelect')">
             <el-option
-              v-for="(item, index) in [{id: 0, name: '所有'}].concat(repositoryList)"
+              v-for="(item, index) in [{id: 0, name: $t('msg.all')}].concat(repositoryList)"
               :key="index"
               :label="item.name"
               :value="item.id"
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="listQuery.status" class="handle-select mr5" clearable placeholder="请选择">
+        <el-form-item :label="$t('msg.status')">
+          <el-select v-model="listQuery.status" class="handle-select mr5" clearable :placeholder="$t('msg.pleaseSelect')">
             <el-option
-              v-for="(item, index) in [{status: 0, name: '所有'}].concat(status)"
+              v-for="(item, index) in [{status: 0, name: $t('msg.all')}].concat(status)"
               :key="index"
               :label="item.name"
               :value="item.status"
@@ -29,49 +29,49 @@
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" icon="el-icon-search" @click="handleFilter">查询</el-button>
+          <el-button type="primary" icon="el-icon-search" @click="handleFilter">{{ $t('msg.search') }}</el-button>
         </el-form-item>
       </el-form>
     </div>
     <div class="handle-box">
-      <el-button type="primary" icon="el-icon-plus" class="mr5" @click="handleAdd">创建</el-button>
+      <el-button type="primary" icon="el-icon-plus" class="mr5" @click="handleAdd">{{ $t('msg.create') }}</el-button>
     </div>
     <el-table v-loading="listLoading" :data="list" border fit highlight-current-row style="width: 100%">
-      <el-table-column align="center" :label="'ID' | i18n" width="80">
+      <el-table-column align="center" :label="$t('msg.id')" width="80">
         <template slot-scope="scope">
           <span>{{ scope.row.id }}</span>
         </template>
       </el-table-column>
 
-      <el-table-column prop="name" align="center" label="名称"/>
+      <el-table-column prop="name" align="center" :label="$t('msg.name')"/>
 
-      <el-table-column prop="path" align="center" :label="'path' | i18n"/>
+      <el-table-column prop="path" align="center" :label="$t('msg.path')"/>
 
-      <el-table-column prop="repositoryId" :formatter="filterRepo" align="center" :label="'repository' | i18n"/>
+      <el-table-column prop="repositoryId" :formatter="filterRepo" align="center" :label="$t('msg.repositoryId')"/>
 
-      <el-table-column prop="execTimeCron" align="center" label="执行时间">
+      <el-table-column prop="execTimeCron" align="center" :label="$t('msg.execTimeCron')">
         <template slot-scope="{row}">
           <span>{{ row.execTimeCron + '   ' }}</span>
           <el-button circle type="text" icon="el-icon-view" @click="cronNext(row.execTimeCron)"/>
         </template>
       </el-table-column>
 
-      <el-table-column class-name="status-col" label="状态">
+      <el-table-column class-name="status-col" :label="$t('msg.status')">
         <template slot-scope="{row}">
           <el-tag :type="row.status === 1 ? 'success' : 'warning'">
-            {{ row.status === 1 ? '运行' : '停止' }}
+            {{ row.status === 1 ? $t('msg.run') : $t('msg.stop') }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="createdAt" align="center" :label="'createdAt' | i18n" :formatter="dateFormat"/>
+      <el-table-column prop="createdAt" align="center" :label="$t('msg.createdAt')" :formatter="dateFormat"/>
       <el-table-column align="center" label="操作" width="200">
         <template slot-scope="{row}">
           <el-button-group>
             <el-button type="success" size="small" @click="backupHandler(row.id)"
                        v-loading.fullscreen.lock="fullscreenLoading"
-                       element-loading-text="正在执行,请勿关闭页面..."
+                       :element-loading-text="$t('msg.tips.runingMsg')"
                        element-loading-spinner="el-icon-loading">
-              立即执行
+              {{ $t('msg.runNow')}}
             </el-button>
             <el-button type="primary" size="small" icon="el-icon-edit" class="mr5" @click="handleEdit(row)"/>
             <el-button type="danger" size="small" icon="el-icon-delete" @click="handleDel(row.id)"/>
@@ -94,58 +94,58 @@
       @dragDialog="handleDrag"
     >
       <el-form ref="dataForm" :rules="rules" :model="temp" label-position="left" label-width="120px">
-        <el-form-item label="名称" prop="name">
+        <el-form-item :label="$t('msg.name')" prop="name">
           <el-input v-model="temp.name"/>
         </el-form-item>
-        <el-form-item :label="'path' | i18n" prop="path">
+        <el-form-item :label="$t('msg.path')" prop="path">
           <el-input v-model="temp.path" disabled>
-            <el-button slot="append" @click="openDirSelect()">选择</el-button>
+            <el-button slot="append" @click="openDirSelect()">{{ $t('msg.select') }}</el-button>
           </el-input>
         </el-form-item>
-        <el-form-item :label="'repository' | i18n" prop="repositoryId">
-          <el-select v-model="temp.repositoryId" placeholder="请选择">
+        <el-form-item :label="$t('msg.repository')" prop="repositoryId">
+          <el-select v-model="temp.repositoryId" :placeholder="$t('msg.pleaseSelect')">
             <el-option v-for="item in repositoryList" :key="item.id" :label="item.name" :value="item.id"/>
           </el-select>
         </el-form-item>
-        <el-form-item label="状态" prop="status">
-          <el-select v-model="temp.status" placeholder="请选择">
+        <el-form-item :label="$t('msg.status')" prop="status">
+          <el-select v-model="temp.status" :placeholder="$t('msg.pleaseSelect')">
             <el-option v-for="item in status" :key="item.status" :label="item.name" :value="item.status"/>
           </el-select>
         </el-form-item>
-        <el-form-item label="cron表达式" prop="execTimeCron">
+        <el-form-item :label="$t('msg.cron')" prop="execTimeCron">
           <el-popover v-model="cronPopover">
             <cron @change="changeCron" @close="cronPopover=false"/>
             <el-input
               slot="reference"
               v-model="temp.execTimeCron"
-              placeholder="请输入定时策略"
+              :placeholder="$t('msg.pleaseInput')+$t('msg.cron')"
               clearable
               @click="cronPopover=true"
             />
           </el-popover>
-          <el-button type="text" @click="cronNext(temp.execTimeCron)">下次执行时间</el-button>
-          <span style="margin-left: 20px;color: red">注意：最后一位"年"仅支持每年（*），其它值无效</span>
+          <el-button type="text" @click="cronNext(temp.execTimeCron)">{{ $t('msg.nextTriggerTime') }}</el-button>
+          <span style="margin-left: 20px;color: red">{{ $t('msg.cronNotice') }}</span>
         </el-form-item>
-        <el-form-item label="读取并发数量" prop="ReadConcurrency">
+        <el-form-item :label="$t('msg.readConcurrency')" prop="ReadConcurrency">
           <el-input v-model="temp.readConcurrency" clearable>
-            <template slot="append">默认2</template>
+            <template slot="append">{{ $t('msg.default') }} 2</template>
           </el-input>
         </el-form-item>
 
-        <el-form-item v-if="dialogStatus === 'create'" label="立即备份">
+        <el-form-item v-if="dialogStatus === 'create'" :label="$t('msg.backupNow')">
           <el-switch v-model="temp.immediate"/>
         </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
         <el-button @click="dialogFormVisible = false">
-          取消
+          {{ $t('msg.cancel') }}
         </el-button>
         <el-button
           type="primary"
           :loading="buttonLoading"
           @click=" dialogStatus === 'create' ? createData() : updateData()"
         >
-          确定
+          {{ $t('msg.confirm') }}
         </el-button>
       </div>
     </el-dialog>
@@ -159,8 +159,8 @@
       </div>
 
       <span slot="footer" class="dialog-footer">
-        <el-button @click="dialogVisible = false">取 消</el-button>
-        <el-button type="primary" @click="dialogVisible = false">确 定</el-button>
+        <el-button @click="dialogVisible = false">{{ $t('msg.cancel') }}</el-button>
+        <el-button type="primary" @click="dialogVisible = false">{{ $t('msg.confirm') }}</el-button>
       </span>
     </el-dialog>
     <el-dialog

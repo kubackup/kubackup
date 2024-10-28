@@ -1,6 +1,11 @@
 <template>
   <div class="navbar">
-    <hamburger id="hamburger-container" :is-active="sidebar.opened" class="hamburger-container" @toggleClick="toggleSideBar" />
+    <hamburger
+      id="hamburger-container"
+      :is-active="sidebar.opened"
+      class="hamburger-container"
+      @toggleClick="toggleSideBar"
+    />
 
     <breadcrumb id="breadcrumb-container" class="breadcrumb-container" />
 
@@ -11,18 +16,26 @@
         <screenfull id="screenfull" class="right-menu-item hover-effect" />
 
       </template>
-
+      <el-dropdown class="right-menu-item hover-effect" @command="switchLang">
+        <span class="el-dropdown-link">
+          {{ options[this.$i18n.locale] }}<i class="el-icon-arrow-down el-icon--right" />
+        </span>
+        <el-dropdown-menu>
+          <el-dropdown-item command="zh-CN">中文</el-dropdown-item>
+          <el-dropdown-item command="en-US">English</el-dropdown-item>
+        </el-dropdown-menu>
+      </el-dropdown>
       <el-dropdown class="avatar-container right-menu-item hover-effect" trigger="click">
         <div class="avatar-wrapper">
           <img src="../../assets/avatar/avatar.png" class="user-avatar">
           <i class="el-icon-caret-bottom" />
         </div>
-        <el-dropdown-menu slot="dropdown">
+        <el-dropdown-menu>
           <router-link to="/profile/index">
-            <el-dropdown-item>个人中心</el-dropdown-item>
+            <el-dropdown-item>{{ $t('msg.title.profile') }}</el-dropdown-item>
           </router-link>
           <el-dropdown-item divided @click.native="logout">
-            <span style="display:block;">退出</span>
+            <span style="display:block;">{{ $t('msg.login.logout') }}</span>
           </el-dropdown-item>
         </el-dropdown-menu>
       </el-dropdown>
@@ -36,6 +49,7 @@ import Breadcrumb from '@/components/Breadcrumb'
 import Hamburger from '@/components/Hamburger'
 import Screenfull from '@/components/Screenfull'
 import Search from '@/components/HeaderSearch'
+import getPageTitle from '@/utils/get-page-title'
 
 export default {
   components: {
@@ -50,9 +64,22 @@ export default {
       'device'
     ])
   },
+  data() {
+    return {
+      options: {
+        'zh-CN': '中文',
+        'en-US': 'English'
+      }
+    }
+  },
   methods: {
     toggleSideBar() {
       this.$store.dispatch('app/toggleSideBar')
+    },
+    switchLang(cmd) {
+      this.$i18n.locale = cmd
+      localStorage.setItem('locale', this.$i18n.locale)
+      document.title = getPageTitle(this.$t(this.$route.meta.title))
     },
     async logout() {
       await this.$store.dispatch('user/logout')
@@ -68,7 +95,7 @@ export default {
   overflow: hidden;
   position: relative;
   background: #fff;
-  box-shadow: 0 1px 4px rgba(0,21,41,.08);
+  box-shadow: 0 1px 4px rgba(0, 21, 41, .08);
 
   .hamburger-container {
     line-height: 46px;
@@ -76,7 +103,7 @@ export default {
     float: left;
     cursor: pointer;
     transition: background .3s;
-    -webkit-tap-highlight-color:transparent;
+    -webkit-tap-highlight-color: transparent;
 
     &:hover {
       background: rgba(0, 0, 0, .025)
@@ -99,6 +126,15 @@ export default {
 
     &:focus {
       outline: none;
+    }
+
+    .el-dropdown-link {
+      cursor: pointer;
+      color: #409EFF;
+    }
+
+    .el-icon-arrow-down {
+      font-size: 12px;
     }
 
     .right-menu-item {

@@ -213,7 +213,7 @@ func loadIndexHandler() iris.Handler {
 			utils.Errore(ctx, err)
 			return
 		}
-		ctx.Values().Set("data", "")
+		ctx.Values().Set("data", "success")
 	}
 
 }

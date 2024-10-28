@@ -1,4 +1,3 @@
-import zhLocale from './zh'
 import { dateFormat } from '@/utils'
 
 export { parseTime, formatTime } from '@/utils'
@@ -67,10 +66,6 @@ export function toThousandFilter(num) {
  */
 export function uppercaseFirst(string) {
   return string.charAt(0).toUpperCase() + string.slice(1)
-}
-
-export function i18n(string) {
-  return zhLocale[string] ? zhLocale[string] : string
 }
 
 export function goDatToDateString(string) {

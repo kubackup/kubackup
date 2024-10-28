@@ -113,7 +113,7 @@
         <el-input placeholder="请输入内容" type="Number" v-model="temp.n" class="input-with-select" maxlength="2">
           <template slot="prepend">保留最新：</template>
           <template slot="append">
-            <el-select v-model="temp.type" placeholder="请选择" disabled>
+            <el-select v-model="temp.type" :placeholder="$t('msg.pleaseSelect')" disabled>
               <el-option v-for="item in typeList" :key="item.code" :label="item.name" :value="item.code"/>
             </el-select>
           </template>

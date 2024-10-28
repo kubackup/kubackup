@@ -3,7 +3,7 @@
     <div class="handle-search">
       <el-form :model="listQuery" inline @submit.native.prevent>
         <el-form-item :label="'plan' | i18n">
-          <el-select v-model="listQuery.planId" class="handle-select mr5" clearable placeholder="请选择">
+          <el-select v-model="listQuery.planId" class="handle-select mr5" clearable :placeholder="$t('msg.pleaseSelect')">
             <el-option
               v-for="(item, index) in [{id: 0, name: '所有'}].concat(planList)"
               :key="index"
@@ -16,7 +16,7 @@
           <el-input v-model="listQuery.name" placeholder="name" style="width: 150px;" class="filter-item" clearable/>
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="listQuery.status" class="handle-select mr5" clearable placeholder="请选择">
+          <el-select v-model="listQuery.status" class="handle-select mr5" clearable :placeholder="$t('msg.pleaseSelect')">
             <el-option
               v-for="(item, index) in [{status: -1, name: '所有'}].concat(statusList)"
               :key="index"

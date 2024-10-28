@@ -6,7 +6,7 @@
           <el-input v-model="listQuery.name" placeholder="name" style="width: 150px;" class="filter-item" clearable/>
         </el-form-item>
         <el-form-item :label="'type' | i18n">
-          <el-select v-model="listQuery.type" class="handle-select mr5" placeholder="请选择">
+          <el-select v-model="listQuery.type" class="handle-select mr5" :placeholder="$t('msg.pleaseSelect')">
             <el-option
               v-for="(item, index) in [{code: '', name: '所有'}].concat(typeList)"
               :key="index"
@@ -89,7 +89,7 @@
           <el-input v-model="temp.name" clearable/>
         </el-form-item>
         <el-form-item label="存储类型" prop="type">
-          <el-select v-model="temp.type" placeholder="请选择" @change="this.onTypeChange">
+          <el-select v-model="temp.type" :placeholder="$t('msg.pleaseSelect')" @change="this.onTypeChange">
             <el-option v-for="item in typeList" :key="item.code" :label="item.name" :value="item.code"/>
           </el-select>
           <span class="repo-type-tips">{{ formatType(temp.type).tips }}</span>
@@ -134,7 +134,7 @@
           <el-input v-model="temp.confirmPassword" show-password clearable type="password"/>
         </el-form-item>
         <el-form-item v-if="dialogStatus === 'create'" label="压缩模式" prop="type">
-          <el-select v-model="temp.compression" placeholder="请选择">
+          <el-select v-model="temp.compression" :placeholder="$t('msg.pleaseSelect')">
             <el-option v-for="item in compressionList" :key="item.code" :label="item.name" :value="item.code"/>
           </el-select>
         </el-form-item>

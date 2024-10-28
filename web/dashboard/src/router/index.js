@@ -67,7 +67,7 @@ export const constantRoutes = [
         path: 'dashboard',
         component: () => import('@/views/dashboard/index'),
         name: 'Dashboard',
-        meta: { title: '首页', icon: 'dashboard', affix: true, noCache: true }
+        meta: { title: 'msg.title.dashboard', icon: 'dashboard', affix: true, noCache: true }
       }
     ]
   },
@@ -81,7 +81,7 @@ export const constantRoutes = [
         path: 'index',
         component: () => import('@/views/profile/index'),
         name: 'Profile',
-        meta: { title: '个人中心', icon: 'user', noCache: true }
+        meta: { title: 'msg.title.profile', icon: 'user', noCache: true }
       }
     ]
   }
@@ -106,27 +106,27 @@ export const asyncRoutes = [
         path: 'index',
         component: () => import('@/views/repository/index'),
         name: 'RepositoryList',
-        meta: { title: '存储库', noCache: true }
+        meta: { title: 'msg.title.repository', noCache: true }
       },
       {
         path: 'restore/:id',
         component: () => import('@/views/repository/restore'),
         name: 'Restore',
-        meta: { title: '恢复', activeMenu: '/repository/index' },
+        meta: { title: 'msg.title.restore', activeMenu: '/repository/index' },
         hidden: true
       },
       {
         path: 'snapshot/:id',
         component: () => import('@/views/repository/snapshot'),
         name: 'Snapshot',
-        meta: { title: '快照', activeMenu: '/repository/index' },
+        meta: { title: 'msg.title.snapshot', activeMenu: '/repository/index' },
         hidden: true
       },
       {
         path: 'operation/:id',
         component: () => import('@/views/repository/operation'),
         name: 'Operation',
-        meta: { title: '维护', activeMenu: '/repository/index' },
+        meta: { title: 'msg.title.operation', activeMenu: '/repository/index' },
         hidden: true
       }
     ]
@@ -145,7 +145,7 @@ export const asyncRoutes = [
         path: 'index',
         component: () => import('@/views/plan/index'),
         name: 'PlanList',
-        meta: { title: '备份计划', noCache: true }
+        meta: { title: 'msg.title.plan', noCache: true }
       }
     ]
   },
@@ -163,7 +163,7 @@ export const asyncRoutes = [
         path: 'index',
         component: () => import('@/views/task/index'),
         name: 'TaskList',
-        meta: { title: '任务记录' }
+        meta: { title: 'msg.title.task' }
       }
     ]
   },
@@ -181,7 +181,7 @@ export const asyncRoutes = [
         path: 'index',
         component: () => import('@/views/user/index'),
         name: 'UserList',
-        meta: { title: '用户管理' }
+        meta: { title: 'msg.title.user' }
       }
     ]
   },
@@ -199,7 +199,7 @@ export const asyncRoutes = [
         path: 'index',
         component: () => import('@/views/log/index'),
         name: 'LogList',
-        meta: { title: '操作日志' }
+        meta: { title: 'msg.title.log' }
       }
     ]
   },

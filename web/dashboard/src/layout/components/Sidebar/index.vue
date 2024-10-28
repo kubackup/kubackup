@@ -17,8 +17,9 @@
       <div class="footer">
         <p>{{ version }}</p>
         <p>
-          <el-link v-if="latestVersion" type="primary" :underline="false" @click="handleDialog">新版本：{{
-            latestVersion
+          <el-link v-if="latestVersion" type="primary" :underline="false" @click="handleDialog">{{
+            $t('msg.newVersion')+'：'+
+              latestVersion
           }}
           </el-link>
         </p>

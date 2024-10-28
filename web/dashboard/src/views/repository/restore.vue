@@ -72,7 +72,7 @@
                         clearable
                         @clear="searchFile"
                         class="input-with-select">
-                <el-select v-model="fileSearch.type" slot="prepend" placeholder="请选择">
+                <el-select v-model="fileSearch.type" slot="prepend" :placeholder="$t('msg.pleaseSelect')">
                   <el-option
                     v-for="(item, index) in searchType"
                     :key="index"
@@ -121,7 +121,7 @@
       <el-form ref="dataForm" label-position="left" label-width="150px">
         <el-form-item label="还原到：" prop="path">
           <el-input v-model="restoreOpt.dirCur" disabled>
-            <el-button slot="append" @click="openDirSelect()">选择</el-button>
+            <el-button slot="append" @click="openDirSelect()">{{ $t('msg.select') }}</el-button>
           </el-input>
           <span style="color: red">默认恢复到"/"，恢复数据即文件原来的路径，若修改，则数据还原路径为当前选择路径加备份路径，例：/root{{
               listQuery.path
@@ -195,7 +195,7 @@
 </template>
 
 <script>
-import {fetchDumpFile, fetchLsList, fetchParmsList, fetchSearchList, fetchSnapshotsList} from '@/api/repository'
+import {fetchLsList, fetchParmsList, fetchSearchList, fetchSnapshotsList} from '@/api/repository'
 import {dateFormat} from "@/utils";
 import {fetchRestore} from "@/api/task";
 import {fetchLs} from "@/api/system";

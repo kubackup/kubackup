@@ -83,10 +83,7 @@ func GetAllRepoStats() {
 			return nil
 		})
 	}
-	if len(Myrepositorys.rep) > 0 {
-		t.Kill(nil)
-		_ = t.Wait()
-	}
+	_ = t.Wait()
 	filet := 0
 	snapn := 0
 	datas := uint64(0)

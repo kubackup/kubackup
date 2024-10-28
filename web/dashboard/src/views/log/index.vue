@@ -6,7 +6,7 @@
           <el-input v-model="listQuery.operator" placeholder="操作员" class="filter-item" clearable/>
         </el-form-item>
         <el-form-item label="操作">
-          <el-select v-model="listQuery.operation" class="handle-select mr5" clearable placeholder="请选择">
+          <el-select v-model="listQuery.operation" class="handle-select mr5" clearable :placeholder="$t('msg.pleaseSelect')">
             <el-option
               v-for="(item, index) in [{value: '', name: '所有'}].concat(operationList)"
               :key="index"
@@ -16,7 +16,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="资源">
-          <el-select v-model="listQuery.url" class="handle-select mr5" clearable placeholder="请选择">
+          <el-select v-model="listQuery.url" class="handle-select mr5" clearable :placeholder="$t('msg.pleaseSelect')">
             <el-option
               v-for="(item, index) in [{value: '', name: '所有'}].concat(resourceList)"
               :key="index"
