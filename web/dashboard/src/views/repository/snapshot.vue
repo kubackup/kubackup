@@ -2,8 +2,8 @@
   <div class="app-container">
     <div class="handle-search">
       <el-form :model="listQuery" inline @submit.native.prevent>
-        <el-form-item label="筛选">
-          <el-select v-model="listQuery.path" clearable placeholder="筛选路径" @change="handleSearch">
+        <el-form-item :label="$t('msg.select')">
+          <el-select v-model="listQuery.path" clearable :placeholder="$t('msg.pleaseSelect')" @change="handleSearch">
             <el-option
               v-for="(item,id) in pathList"
               :key="id"
@@ -17,7 +17,7 @@
           <el-date-picker
             v-model="listQuery.date"
             type="date"
-            placeholder="选择日期"
+            :placeholder="$t('msg.pleaseSelect')"
             @change="handleSearch">
           </el-date-picker>
         </el-form-item>
@@ -28,11 +28,11 @@
         <el-col :xs="8" :sm="8" :lg="8" class="card-panel-col">
           <el-card class="box-card">
             <div slot="header">
-              <p>主机：{{ hostname }}</p>
-              <p>路径：{{ listQuery.path }}</p>
-              <p>合计：{{ total }}</p>
+              <p>{{ $t('msg.host') }}：{{ hostname }}</p>
+              <p>{{ $t('msg.path') }}：{{ listQuery.path }}</p>
+              <p>{{ $t('msg.total') }}：{{ total }}</p>
               <div>
-                <p>清理策略：</p>
+                <p>{{ $t('msg.cleanPolicy') }}：</p>
                 <div v-if="policy.n > 0">
                   <p>保留最新 <i class="blue">{{ policy.n + formatType(policy.type).name }} </i> 快照 </p>
                   <el-button
@@ -40,21 +40,21 @@
                     type="text"
                     size="mini"
                     @click="handleUpdate()">
-                    修改
+                    {{ $t('msg.operation.edit') }}
                   </el-button>
                   <el-button
                     class="forget-create"
                     type="text"
                     size="mini"
                     @click="handleDel()">
-                    删除
+                    {{ $t('msg.operation.delete') }}
                   </el-button>
                   <el-button
                     class="forget-create"
                     type="text"
                     size="mini"
                     @click="doPolicy()">
-                    立即执行
+                    {{ $t('msg.operation.execute') }}
                   </el-button>
                 </div>
                 <div v-else-if="policy.n === 0 && listQuery.path !== ''">
@@ -63,7 +63,7 @@
                     type="text"
                     size="mini"
                     @click="handleAdd()">
-                    设置
+                    {{ $t('msg.set') }}
                   </el-button>
                 </div>
               </div>
@@ -143,7 +143,7 @@ import {getToken} from "@/utils/auth";
 import Terminal from '@/components/TermLog'
 import SockJS from "sockjs-client";
 import {ws_log} from "@/api/ws";
-import {ForgetTypeList} from "@/consts";
+import {ForgetTypeList, ForgetTypeListEN} from "@/consts";
 import {fetchCreate, fetchDel, fetchDoPolicy, fetchList, fetchUpdate} from "@/api/policy";
 
 export default {
@@ -153,7 +153,7 @@ export default {
   },
   data() {
     return {
-      typeList: ForgetTypeList,
+      typeList: this.$i18n.locale === 'zh-CN' ? ForgetTypeList : ForgetTypeListEN,
       list: [],
       total: 0,
       snapList: [],

@@ -2,13 +2,13 @@
   <div class="app-container">
     <div class="handle-search">
       <el-form :model="listQuery" inline @submit.native.prevent>
-        <el-form-item label="筛选">
+        <el-form-item :label="$t('msg.select')">
           <el-cascader
             v-model="pathQuery"
             :options="hostList"
             :props="{ expandTrigger: 'hover' }"
             clearable
-            placeholder="输入内容搜索"
+            :placeholder="$t('msg.pleaseSelect')"
             filterable
             separator=" => "
             style="width: 800px"
@@ -18,7 +18,7 @@
           <el-date-picker
             v-model="listQuery.date"
             type="date"
-            placeholder="选择日期"
+            :placeholder="$t('msg.pleaseSelect')"
             @change="handleSearch">
           </el-date-picker>
         </el-form-item>
@@ -29,9 +29,9 @@
         <el-col :xs="8" :sm="8" :lg="8" class="card-panel-col">
           <el-card class="box-card">
             <div slot="header">
-              <p>主机：{{ listQuery.host + (list.length > 0 ? '(' + list[0].username + ')' : '') }}</p>
-              <p>路径：{{ listQuery.path }}</p>
-              <p>合计：{{ total }}</p>
+              <p>{{ $t('msg.host') }}：{{ listQuery.host + (list.length > 0 ? '(' + list[0].username + ')' : '') }}</p>
+              <p>{{ $t('msg.path') }}：{{ listQuery.path }}</p>
+              <p>{{ $t('msg.total') }}：{{ total }}</p>
             </div>
             <el-collapse v-model="activeName" accordion>
               <el-collapse-item :title="snaps.name" :name="snaps.name" :key="i" v-for="(snaps, i) in snapList">
@@ -52,23 +52,23 @@
                         type="text"
                         size="mini"
                         @click="openRestoreOpt(item.short_id)">
-                        恢复
+                        {{ $t('msg.operation.restore') }}
                       </el-button>
                     </div>
                   </el-timeline-item>
                 </el-timeline>
               </el-collapse-item>
             </el-collapse>
-            <p v-if="noMore" style="font-size: 20px; text-align: center; color: #bbbbbb">没有更多了</p>
+            <p v-if="noMore" style="font-size: 20px; text-align: center; color: #bbbbbb">{{ $t('msg.tips.noMore') }}</p>
             <div v-else style="text-align: center;">
-              <el-button :loading="listLoading" type="info" plain @click="getMoreList">加载更多</el-button>
+              <el-button :loading="listLoading" type="info" plain @click="getMoreList">{{ $t('msg.loadMore') }}</el-button>
             </div>
           </el-card>
         </el-col>
         <el-col :xs="16" :sm="16" :lg="16" class="card-panel-col">
           <el-card class="box-card">
             <div>
-              <el-input placeholder="输入准确路径，搜索速度会更快，如：data/test/avator.png" v-model="fileSearch.name"
+              <el-input :placeholder="$t('msg.tips.searchInfo')+'：data/test/avator.png'" v-model="fileSearch.name"
                         clearable
                         @clear="searchFile"
                         class="input-with-select">
@@ -105,7 +105,7 @@
                     type="text"
                     size="mini"
                     @click="() => restoreFileHandler(data)">
-                    还原
+                    {{ $t('msg.operation.restore') }}
                   </el-button>
                 </span>
               </span>
@@ -115,11 +115,11 @@
       </el-row>
     </div>
     <el-dialog
-      title="还原选项"
+      :title="$t('msg.title.restoreOptions')"
       :visible.sync="dialogFormVisible"
     >
       <el-form ref="dataForm" label-position="left" label-width="150px">
-        <el-form-item label="还原到：" prop="path">
+        <el-form-item :label="$t('msg.title.restoreTo')+'：'" prop="path">
           <el-input v-model="restoreOpt.dirCur" disabled>
             <el-button slot="append" @click="openDirSelect()">{{ $t('msg.select') }}</el-button>
           </el-input>
@@ -127,30 +127,30 @@
               listQuery.path
             }}，/root为本次选择路径</span>
         </el-form-item>
-        <el-form-item label="数据最终所在目录：" prop="path">
+        <el-form-item :label="$t('msg.title.finalPath')+'：'" prop="path">
           <span>{{ restoreOpt.dist }}</span>
         </el-form-item>
-        <el-form-item label="是否校验数据完整性">
+        <el-form-item :label="$t('msg.title.verify')">
           <el-switch
             v-model="restoreOpt.verify">
           </el-switch>
-          <p style="color: red">开启数据完整性校验，校验时间较长，请根据需要选择！</p>
+          <p style="color: red">开启数据完整性校验，校验时间较长，请谨慎选择！</p>
         </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
         <el-button @click="dialogFormVisible = false">
-          取消
+          {{ $t('msg.cancel') }}
         </el-button>
         <el-button
           type="primary"
           @click="restoreSnapHandler()"
         >
-          确定
+          {{ $t('msg.confirm') }}
         </el-button>
       </div>
     </el-dialog>
     <el-dialog
-      title="选择文件夹"
+      :title="$t('msg.title.folderSelect')"
       :visible.sync="dialogDirVisible"
     >
       <div>
@@ -174,7 +174,7 @@
               class="confirmbtn"
               size="mini"
               @click="confirmDirSelect(item.path)">
-                    确定
+                    {{ $t('msg.confirm') }}
                   </el-button>
           </span>
         </span>
@@ -182,12 +182,12 @@
       </div>
       <div slot="footer" class="dialog-footer">
         <el-button @click="dialogDirVisible = false">
-          取消
+          {{ $t('msg.cancel') }}
         </el-button>
         <el-button
           type="primary"
           @click="confirmDirSelect()">
-          确定
+          {{ $t('msg.confirm') }}
         </el-button>
       </div>
     </el-dialog>
@@ -225,8 +225,8 @@ export default {
       curSnap: {},
       activeName: '0',
       searchType: [
-        {code: 0, name: '全库'},
-        {code: 1, name: '当前快照'}
+        {code: 0, name: this.$t('msg.repository')},
+        {code: 1, name: this.$t('msg.snapshot')}
       ],
       fileSearch: {
         type: 0,
@@ -305,7 +305,7 @@ export default {
         })
       })
       res.unshift({
-        name: '根',
+        name: this.$t('msg.root'),
         path: '/'
       })
       return res
@@ -401,7 +401,7 @@ export default {
           this.treeLoading = false
         })
       } else {
-        this.$notify.error("功能暂未开放")
+        this.$notify.error(this.$t('msg.noFunction'))
       }
     },
     restoreSnapHandler() {

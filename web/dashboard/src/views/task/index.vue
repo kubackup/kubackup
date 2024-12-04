@@ -2,23 +2,23 @@
   <div class="app-container">
     <div class="handle-search">
       <el-form :model="listQuery" inline @submit.native.prevent>
-        <el-form-item :label="'plan' | i18n">
+        <el-form-item :label="$t('msg.plan')">
           <el-select v-model="listQuery.planId" class="handle-select mr5" clearable :placeholder="$t('msg.pleaseSelect')">
             <el-option
-              v-for="(item, index) in [{id: 0, name: '所有'}].concat(planList)"
+              v-for="(item, index) in [{id: 0, name: $t('msg.all')}].concat(planList)"
               :key="index"
               :label="item.name"
               :value="item.id"
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="名称">
+        <el-form-item :label="$t('msg.name')">
           <el-input v-model="listQuery.name" placeholder="name" style="width: 150px;" class="filter-item" clearable/>
         </el-form-item>
-        <el-form-item label="状态">
+        <el-form-item :label="$t('msg.status')">
           <el-select v-model="listQuery.status" class="handle-select mr5" clearable :placeholder="$t('msg.pleaseSelect')">
             <el-option
-              v-for="(item, index) in [{status: -1, name: '所有'}].concat(statusList)"
+              v-for="(item, index) in [{status: -1, name: $t('msg.all')}].concat(statusList)"
               :key="index"
               :label="item.name"
               :value="item.status"
@@ -26,40 +26,40 @@
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" icon="el-icon-search" @click="handleFilter">查询</el-button>
+          <el-button type="primary" icon="el-icon-search" @click="handleFilter">{{ $t('msg.search') }}</el-button>
         </el-form-item>
       </el-form>
     </div>
     <el-table :data="list" border fit highlight-current-row style="width: 100%">
-      <el-table-column align="center" :label="'ID' | i18n" width="80">
+      <el-table-column align="center" label="ID" width="80">
         <template slot-scope="scope">
           <span>{{ scope.row.id }}</span>
         </template>
       </el-table-column>
 
-      <el-table-column prop="name" align="center" label="名称"/>
+      <el-table-column prop="name" align="center" :label="$t('msg.name')"/>
 
-      <el-table-column prop="createdAt" :formatter="dateFormat" align="center" :label="'createdAt' | i18n"/>
+      <el-table-column prop="createdAt" :formatter="dateFormat" align="center" :label="$t('msg.createdAt')"/>
 
-      <el-table-column prop="duration" align="center" :label="'duration' | i18n">
+      <el-table-column prop="duration" align="center" :label="$t('msg.duration')">
         <template slot-scope="{row}">
           <div>
             {{ (row.summary.totalDuration || row.progress.secondsElapsed) + '(' + (row.scanner.duration || '0:0') + ')' }}
           </div>
         </template>
       </el-table-column>
-      <el-table-column prop="dataAdd" align="center" label="数据">
+      <el-table-column prop="dataAdd" align="center" :label="$t('msg.data')">
         <template slot-scope="{row}">
           {{ row.summary.dataAdded || row.progress.bytesDone }}
         </template>
       </el-table-column>
-      <el-table-column prop="path" align="center" :label="'path' | i18n"/>
+      <el-table-column prop="path" align="center" :label="$t('msg.path')"/>
 
-      <el-table-column prop="repositoryId" align="center" :formatter="filterRepo" :label="'repository' | i18n"/>
+      <el-table-column prop="repositoryId" align="center" :formatter="filterRepo" :label="$t('msg.repository')"/>
 
-      <el-table-column prop="planId" align="center" :formatter="filterPlan" :label="'plan' | i18n"/>
+      <el-table-column prop="planId" align="center" :formatter="filterPlan" :label="$t('msg.plan')"/>
 
-      <el-table-column align="center" :label="'progress' | i18n">
+      <el-table-column align="center" :label="$t('msg.progress')">
         <template slot-scope="{row}">
           <el-progress
             type="dashboard"
@@ -69,7 +69,7 @@
         </template>
       </el-table-column>
 
-      <el-table-column prop="status" align="center" :label="'status' | i18n">
+      <el-table-column prop="status" align="center" :label="$t('msg.status')">
         <template slot-scope="{row}">
           <el-button :type="formatStatus(row.status).color" @click="handleInfo(row)">
             {{ formatStatus(row.status).name }}
@@ -87,7 +87,7 @@
     />
 
     <el-dialog v-if="taskType(taskInfo.name) === 1"
-               :title="'任务信息 '+(taskInfo.summary.snapshotId===undefined?'...':taskInfo.summary.snapshotId)"
+               :title="$t('msg.taskInfo')+' ' + (taskInfo.summary.snapshotId===undefined?'...':taskInfo.summary.snapshotId)"
                :visible.sync="dialogFormVisible" top="5vh"
                @close="closeSockjs"
                width="80%">
@@ -95,53 +95,53 @@
         <el-col v-if="taskInfo.scanner && taskInfo.status!==3" :span="8">
           <el-card class="card-h">
             <div slot="header" class="clearfix">
-              <span class="info_title bluetext">扫描信息</span>
+              <span class="info_title bluetext">{{ $t('msg.title.scannerInfo') }}</span>
             </div>
             <el-row :gutter="10">
-              <el-col :span="24"><p>数据量：{{ taskInfo.scanner.dataSize }}</p></el-col>
-              <el-col :span="24"><p>文件数量：{{ taskInfo.scanner.totalFiles }}</p></el-col>
-              <el-col :span="24"><p class="redtext">耗时：{{ taskInfo.scanner.duration }}</p></el-col>
+              <el-col :span="24"><p>{{ $t('msg.title.dataSize') }}：{{ taskInfo.scanner.dataSize }}</p></el-col>
+              <el-col :span="24"><p>{{ $t('msg.title.totalFiles') }}：{{ taskInfo.scanner.totalFiles }}</p></el-col>
+              <el-col :span="24"><p class="redtext">{{ $t('msg.title.scannerDuration') }}：{{ taskInfo.scanner.duration }}</p></el-col>
             </el-row>
           </el-card>
         </el-col>
         <el-col v-if="taskInfo.status===3 && taskInfo.scannerError" :span="8">
           <el-card class="card-h">
             <div slot="header" class="clearfix">
-              <span class="info_title redtext">扫描错误</span>
+              <span class="info_title redtext">{{ $t('msg.title.scannerError') }}</span>
             </div>
             <el-row :gutter="10">
-              <el-col :span="24"><p>错误信息：{{ taskInfo.scannerError.error }}</p></el-col>
-              <el-col :span="24"><p>错误项：{{ taskInfo.scannerError.item }}</p></el-col>
+              <el-col :span="24"><p>{{ $t('msg.title.errorInfo') }}：{{ taskInfo.scannerError.error }}</p></el-col>
+              <el-col :span="24"><p>{{ $t('msg.title.ErrorItem') }}：{{ taskInfo.scannerError.item }}</p></el-col>
             </el-row>
           </el-card>
         </el-col>
         <el-col v-if="taskInfo.summary && taskInfo.status!==3" :span="16">
           <el-card class="card-h">
             <div slot="header" class="clearfix">
-              <span class="info_title bluetext">恢复信息</span>
+              <span class="info_title bluetext">{{ $t('msg.title.restoreInfo') }}</span>
             </div>
             <el-row :gutter="10">
               <el-col :span="8"><p>
-                数据量：{{ taskInfo.progress.bytesDone ? taskInfo.progress.bytesDone : taskInfo.scanner.dataSize }}</p>
+                {{ $t('msg.title.bytesDone') }}：{{ taskInfo.progress.bytesDone ? taskInfo.progress.bytesDone : taskInfo.scanner.dataSize }}</p>
               </el-col>
-              <el-col :span="8"><p>文件数量：{{ taskInfo.progress.filesDone }}</p></el-col>
+              <el-col :span="8"><p>{{ $t('msg.title.filesDone') }}：{{ taskInfo.progress.filesDone }}</p></el-col>
               <el-col v-if="taskInfo.progress.errorCount>0" :span="8" class="redtext"><p>
-                错误数量：{{ taskInfo.progress.errorCount }}</p></el-col>
+                {{ $t('msg.title.errorCount') }}：{{ taskInfo.progress.errorCount }}</p></el-col>
             </el-row>
             <el-row :gutter="10">
-              <el-col :span="8"><p class="redtext">耗时：{{ taskInfo.progress.secondsElapsed }}</p></el-col>
+              <el-col :span="8"><p class="redtext">{{ $t('msg.title.secondsElapsed') }}：{{ taskInfo.progress.secondsElapsed }}</p></el-col>
               <el-col v-if="taskInfo.progress.secondsRemaining" :span="8"><p class="redtext">
-                剩余时间：{{ taskInfo.progress.secondsRemaining }}</p></el-col>
+                {{ $t('msg.title.secondsRemaining') }}：{{ taskInfo.progress.secondsRemaining }}</p></el-col>
             </el-row>
             <el-row :gutter="10">
-              <el-col :span="8"><p>平均速度：{{ taskInfo.progress.avgSpeed }}</p></el-col>
+              <el-col :span="8"><p>{{ $t('msg.title.avgSpeed') }}：{{ taskInfo.progress.avgSpeed }}</p></el-col>
             </el-row>
           </el-card>
         </el-col>
         <el-col v-if="taskInfo.status===3 && (taskInfo.archivalError||taskInfo.restoreError)" :span="16">
           <el-card class="card-h">
             <div slot="header" class="clearfix">
-              <span class="info_title redtext">恢复错误</span>
+              <span class="info_title redtext">{{ $t('msg.title.restoreError') }}</span>
             </div>
             <el-row :gutter="10">
               <el-col v-if="taskInfo.restoreError" v-for="(item,index) in taskInfo.restoreError" :key="index"
@@ -158,71 +158,71 @@
     </el-dialog>
 
     <el-dialog v-if="taskType(taskInfo.name) === 2"
-               :title="'任务信息 '+(taskInfo.summary.snapshotId===undefined?'...':taskInfo.summary.snapshotId)"
+               :title="$t('msg.taskInfo')+ ' '+(taskInfo.summary.snapshotId===undefined?'...':taskInfo.summary.snapshotId)"
                :visible.sync="dialogFormVisible" top="5vh"
                width="80%" @close="closeSockjs">
       <el-row :gutter="10">
         <el-col v-if="taskInfo.scanner && taskInfo.status!==3" :span="8">
           <el-card class="card-h">
             <div slot="header" class="clearfix">
-              <span class="info_title bluetext">扫描信息</span>
+              <span class="info_title bluetext">{{ $t('msg.title.scannerInfo') }}</span>
             </div>
             <el-row :gutter="10">
-              <el-col :span="24"><p>数据量：{{ taskInfo.scanner.dataSize }}</p></el-col>
-              <el-col :span="24"><p>文件数量：{{ taskInfo.scanner.totalFiles }}</p></el-col>
-              <el-col :span="24"><p class="redtext">扫描耗时：{{ taskInfo.scanner.duration }}</p></el-col>
+              <el-col :span="24"><p>{{ $t('msg.title.dataSize') }}：{{ taskInfo.scanner.dataSize }}</p></el-col>
+              <el-col :span="24"><p>{{ $t('msg.title.totalFiles') }}：{{ taskInfo.scanner.totalFiles }}</p></el-col>
+              <el-col :span="24"><p class="redtext">{{ $t('msg.title.scannerDuration') }}：{{ taskInfo.scanner.duration }}</p></el-col>
             </el-row>
           </el-card>
         </el-col>
         <el-col v-if="taskInfo.status===3 && taskInfo.scannerError" :span="12">
           <el-card class="card-h">
             <div slot="header" class="clearfix">
-              <span class="info_title redtext">扫描错误</span>
+              <span class="info_title redtext">{{ $t('msg.title.scannerError') }}</span>
             </div>
             <el-row :gutter="10">
-              <el-col :span="24"><p>错误信息：{{ taskInfo.scannerError.error }}</p></el-col>
-              <el-col :span="24"><p>错误项：{{ taskInfo.scannerError.item }}</p></el-col>
+              <el-col :span="24"><p>{{ $t('msg.title.errorInfo') }}：{{ taskInfo.scannerError.error }}</p></el-col>
+              <el-col :span="24"><p>{{ $t('msg.title.ErrorItem') }}：{{ taskInfo.scannerError.item }}</p></el-col>
             </el-row>
           </el-card>
         </el-col>
         <el-col v-if="taskInfo.status!==3" :span="16">
           <el-card class="card-h">
             <div slot="header" class="clearfix">
-              <span class="info_title bluetext">汇总信息</span>
+              <span class="info_title bluetext">{{ $t('msg.title.summary') }}</span>
             </div>
             <el-row :gutter="10">
               <el-col :span="8"><p>
-                处理数据量：{{ taskInfo.progress.bytesDone ? taskInfo.progress.bytesDone : taskInfo.scanner.dataSize }}</p>
+                {{ $t('msg.title.bytesDone') }}：{{ taskInfo.progress.bytesDone ? taskInfo.progress.bytesDone : taskInfo.scanner.dataSize }}</p>
               </el-col>
-              <el-col :span="8"><p>新增文件夹：{{ taskInfo.summary.dirsNew }}</p></el-col>
-              <el-col :span="8"><p>新增文件：{{ taskInfo.summary.filesNew }}</p></el-col>
+              <el-col :span="8"><p>{{ $t('msg.title.dirsNew') }}：{{ taskInfo.summary.dirsNew }}</p></el-col>
+              <el-col :span="8"><p>{{ $t('msg.title.filesNew') }}：{{ taskInfo.summary.filesNew }}</p></el-col>
             </el-row>
             <el-row :gutter="10">
-              <el-col :span="8"><p class="redtext">新增数据量：{{ taskInfo.summary.dataAdded }}</p></el-col>
-              <el-col :span="8"><p>变动文件夹：{{ taskInfo.summary.dirsChanged }}</p></el-col>
-              <el-col :span="8"><p>变动文件：{{ taskInfo.summary.filesChanged }}</p></el-col>
+              <el-col :span="8"><p class="redtext">{{ $t('msg.title.dataAdded') }}：{{ taskInfo.summary.dataAdded }}</p></el-col>
+              <el-col :span="8"><p>{{ $t('msg.title.dirsChanged') }}：{{ taskInfo.summary.dirsChanged }}</p></el-col>
+              <el-col :span="8"><p>{{ $t('msg.title.filesChanged') }}：{{ taskInfo.summary.filesChanged }}</p></el-col>
             </el-row>
             <el-row :gutter="10">
-              <el-col :span="8"><p class="redtext">完成文件数量：{{ taskInfo.progress.filesDone }}</p></el-col>
-              <el-col :span="8"><p>未修改文件夹：{{ taskInfo.summary.dirsUnmodified }}</p></el-col>
-              <el-col :span="8"><p>未修改文件：{{ taskInfo.summary.filesUnmodified }}</p></el-col>
+              <el-col :span="8"><p class="redtext">{{ $t('msg.title.filesDone') }}：{{ taskInfo.progress.filesDone }}</p></el-col>
+              <el-col :span="8"><p>{{ $t('msg.title.dirsUnmodified') }}：{{ taskInfo.summary.dirsUnmodified }}</p></el-col>
+              <el-col :span="8"><p>{{ $t('msg.title.filesUnmodified') }}：{{ taskInfo.summary.filesUnmodified }}</p></el-col>
             </el-row>
             <el-row :gutter="10">
-              <el-col :span="8"><p class="redtext">耗时：{{ taskInfo.progress.secondsElapsed }}</p></el-col>
+              <el-col :span="8"><p class="redtext">{{ $t('msg.title.secondsElapsed') }}：{{ taskInfo.progress.secondsElapsed }}</p></el-col>
               <el-col v-if="taskInfo.progress.secondsRemaining && sockjsOpen" :span="8"><p class="redtext">
-                剩余时间：{{ taskInfo.progress.secondsRemaining }}</p></el-col>
+                {{ $t('msg.title.secondsRemaining') }}：{{ taskInfo.progress.secondsRemaining }}</p></el-col>
               <el-col v-if="taskInfo.progress.errorCount>0" :span="8" class="redtext"><p>
-                错误数量：{{ taskInfo.progress.errorCount }}</p></el-col>
+                {{ $t('msg.title.errorCount') }}：{{ taskInfo.progress.errorCount }}</p></el-col>
             </el-row>
             <el-row :gutter="10">
-              <el-col :span="8"><p>平均速度：{{ taskInfo.progress.avgSpeed }}</p></el-col>
+              <el-col :span="8"><p>{{ $t('msg.title.avgSpeed') }}：{{ taskInfo.progress.avgSpeed }}</p></el-col>
             </el-row>
           </el-card>
         </el-col>
         <el-col v-if="taskInfo.archivalError" :span="12">
           <el-card class="card-h">
             <div slot="header" class="clearfix">
-              <span class="info_title redtext">备份错误</span>
+              <span class="info_title redtext">{{ $t('msg.title.backupError') }}</span>
             </div>
             <el-col v-if="taskInfo.archivalError" v-for="(item,index) in taskInfo.archivalError" :key="index"
                     :span="24"><p>
@@ -234,7 +234,7 @@
         <el-col :span="24">
           <el-card>
             <div slot="header" class="clearfix">
-              <span class="info_title">进度</span>
+              <span class="info_title">{{ $t('msg.progress') }}</span>
             </div>
             <div>
               <el-progress
@@ -270,10 +270,10 @@ export default {
     return {
       dialogFormVisible: false,
       statusList: [
-        {name: '新建', status: 0, color: 'primary'},
-        {name: '运行中', status: 1, color: 'primary'},
-        {name: '已完成', status: 2, color: 'success'},
-        {name: '错误', status: 3, color: 'danger'}
+        {name: this.$t('msg.new'), status: 0, color: 'primary'},
+        {name: this.$t('msg.run'), status: 1, color: 'primary'},
+        {name: this.$t('msg.completed'), status: 2, color: 'success'},
+        {name: this.$t('msg.err'), status: 3, color: 'danger'}
       ],
       taskInfo: {
         summary: {},
@@ -404,7 +404,7 @@ export default {
             that.sockjsOpen = false
             that.$notify({
               type: 'error',
-              title: '错误',
+              title: this.$t('msg.err'),
               message: data.message
             })
           } else {

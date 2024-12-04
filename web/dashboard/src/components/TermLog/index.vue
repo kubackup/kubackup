@@ -9,7 +9,7 @@
       </ul>
       <div class="terminal-header-right">
         <span v-if="status!==0" :class="formatStatus(status).color">{{ formatStatus(status).name }}</span>
-        <span style="margin-left: 10px">自动滚动 <el-switch v-model="autoScroll" /></span>
+        <span style="margin-left: 10px">{{ $t('msg.title.autoScroll') }} <el-switch v-model="autoScroll" /></span>
       </div>
     </div>
 

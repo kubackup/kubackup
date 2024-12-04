@@ -1,13 +1,15 @@
 <template>
   <div class="dashboard-container">
-    <span class="duration">本次统计时间：{{ dateformat(backupinfo.time) }} 耗时：{{ backupinfo.duration }}</span>
+    <span class="duration">{{ $t('msg.latestTime') }}：{{ dateformat(backupinfo.time) }} {{
+        $t('msg.duration')
+      }}：{{ backupinfo.duration }}</span>
     <i class="refresh-btn" :class="refresh_icon" @click="doGetAllRepoStats"/>
     <el-row :gutter="40" class="panel-group">
       <el-col :xs="12" :sm="12" :lg="8" class="card-panel-col">
         <panel
           :start-val="1"
           :end-val="backupinfo.dataDayNum"
-          text="数据保护天数"
+          :text="$t('msg.protectDate')"
           :suffix="backupinfo.dataDayUnit"
           icon="el-icon-time"
           icon-color="icon-green"
@@ -16,21 +18,21 @@
       <el-col :xs="12" :sm="12" :lg="8" class="card-panel-col">
         <panel
           :countto="false"
-          text="数据量"
+          :text="$t('msg.data')"
           :cvalue="backupinfo.dataStr"
           icon="el-icon-s-data"
           icon-color="icon-blue"
         />
       </el-col>
       <el-col :xs="12" :sm="12" :lg="8" class="card-panel-col">
-        <panel :start-val="1" :end-val="backupinfo.fileTotal" text="文件数量" icon-color="icon-red"
+        <panel :start-val="1" :end-val="backupinfo.fileTotal" :text="$t('msg.files')" icon-color="icon-red"
                icon="el-icon-files"/>
       </el-col>
       <el-col :xs="12" :sm="12" :lg="8" class="card-panel-col">
         <panel
           :start-val="1"
           :end-val="backupinfo.snapshotsNum"
-          text="快照数量"
+          :text="$t('msg.snapshots')"
           icon-color="icon-blue"
           icon="el-icon-s-flag"
         />
@@ -39,7 +41,7 @@
         <panel
           :countto="false"
           :cvalue="planinfo.runningCount+' / '+planinfo.total"
-          text="任务数量"
+          :text="$t('msg.tasks')"
           icon="el-icon-tickets"
           icon-color="icon-red"
         />
@@ -48,7 +50,7 @@
         <panel
           :countto="false"
           :cvalue="repoinfo.runningCount+' / '+repoinfo.total"
-          text="仓库数量"
+          :text="$t('msg.repos')"
           icon="el-icon-coin"
           icon-color="icon-green"
         />
@@ -56,13 +58,13 @@
     </el-row>
     <el-row :gutter="40" class="panel-group">
       <el-col :xs="12" :sm="12" :lg="8" class="card-panel-col">
-        <pie_chart title="备份数据量统计" :cdata="chartsize" theme="shine" seriesname="单位：GB"/>
+        <pie_chart :title="$t('msg.data')" :cdata="chartsize" theme="shine" :seriesname="$t('msg.unit')+'：GB'"/>
       </el-col>
       <el-col :xs="12" :sm="12" :lg="8" class="card-panel-col">
-        <pie_chart title="备份文件数量统计" :cdata="chartfile" theme="shine"/>
+        <pie_chart :title="$t('msg.files')" :cdata="chartfile" theme="shine"/>
       </el-col>
       <el-col :xs="12" :sm="12" :lg="8" class="card-panel-col">
-        <pie_chart title="备份快照数量统计" :cdata="chartsnap" theme="shine"/>
+        <pie_chart :title="$t('msg.snapshots')" :cdata="chartsnap" theme="shine"/>
       </el-col>
     </el-row>
   </div>
@@ -121,8 +123,8 @@ export default {
       fetchDoGetAllRepoStats().then(res => {
         this.$notify.success(
           {
-            message: '正在统计中，请稍后刷新页面查看...',
-            title: '提示'
+            message: this.$t('msg.tips.statisticsNotice'),
+            title: this.$t('msg.title.notice')
           })
       }).finally(() => {
         this.refresh_icon = 'el-icon-refresh-left'

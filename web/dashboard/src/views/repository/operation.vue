@@ -4,80 +4,80 @@
       <el-row :gutter="40" class="panel-group">
         <el-col :xs="6" :sm="6" :lg="6" class="card-panel-col">
           <el-form label-position="right" label-width="80px">
-            <el-form-item label="名称:">
+            <el-form-item :label="$t('msg.name')+':'">
               <span>{{ repoData.name }}</span>
             </el-form-item>
-            <el-form-item label="服务器:">
+            <el-form-item :label="$t('msg.endPoint')+':'">
               <span>{{ repoData.endPoint }}</span>
             </el-form-item>
-            <el-form-item label="桶:" v-if="repoData.bucket">
+            <el-form-item :label="$t('msg.bucket')+':'" v-if="repoData.bucket">
               <span>{{ repoData.bucket }}</span>
             </el-form-item>
-            <el-form-item label="创建时间:">
+            <el-form-item :label="$t('msg.createdAt')+':'">
               <span>{{ dateFormat(repoData.createdAt) }}</span>
             </el-form-item>
-            <el-form-item label="类型:">
+            <el-form-item :label="$t('msg.type')+':'">
               <span>{{ formatType(repoData.type) }}</span>
             </el-form-item>
-            <el-form-item label="格式版本:">
+            <el-form-item :label="$t('msg.repositoryVersion')+':'">
               <span>{{ repoData.repositoryVersion }}</span>
-              <el-button type="text" @click="migrationHandler()">升级版本</el-button>
+              <el-button type="text" @click="migrationHandler()">{{ $t('msg.operation.update') }}</el-button>
             </el-form-item>
-            <el-form-item label="连接状态:">
+            <el-form-item :label="$t('msg.statusData')+':'">
               <el-tag :type="formatStatus(repoData.status).color">
                 {{ formatStatus(repoData.status).name }}
               </el-tag>
             </el-form-item>
-            <el-form-item label="错误信息:" v-if="repoData.errmsg!==''">
+            <el-form-item :label="$t('msg.title.errorInfo')+':'" v-if="repoData.errmsg!==''">
               <span>{{ repoData.errmsg }}</span>
             </el-form-item>
-            <el-form-item label="数据状态:">
+            <el-form-item :label="$t('msg.statusConn')+':'">
               <div class="form-btn">
                 <el-tag :type="formatStatus(checkObj.status).color">
                   {{ formatStatus(checkObj.status).name }}
                 </el-tag>
-                <el-button type="text" @click="checkHandler()">重新检测</el-button>
+                <el-button type="text" @click="checkHandler()">{{ $t('msg.operation.check') }}</el-button>
               </div>
             </el-form-item>
-            <el-form-item label="重建索引:">
+            <el-form-item :label="$t('msg.operation.rebuildIndex')+':'">
               <div class="form-btn">
                 <el-tag :type="formatStatus(rebuildIndexObj.status).color">
                   {{ formatStatus(rebuildIndexObj.status).name }}
                 </el-tag>
-                <el-button type="text" @click="rebuildIndexHandler()">重新执行</el-button>
+                <el-button type="text" @click="rebuildIndexHandler()">{{ $t('msg.operation.execute') }}</el-button>
               </div>
             </el-form-item>
-            <el-form-item label="清理无用数据:">
+            <el-form-item :label="$t('msg.operation.prune')+':'">
               <div class="form-btn">
                 <el-tag :type="formatStatus(pruneObj.status).color">
                   {{ formatStatus(pruneObj.status).name }}
                 </el-tag>
-                <el-button type="text" @click="pruneHandler()">重新执行</el-button>
+                <el-button type="text" @click="pruneHandler()">{{ $t('msg.operation.execute') }}</el-button>
               </div>
             </el-form-item>
-            <el-form-item label="清除锁:">
+            <el-form-item :label="$t('msg.operation.unlock')+':'">
               <div class="form-btn">
-                <el-button type="text" @click="unlockHandler()">执行</el-button>
+                <el-button type="text" @click="unlockHandler()">{{ $t('msg.operation.execute') }}</el-button>
               </div>
             </el-form-item>
           </el-form>
         </el-col>
         <el-col :xs="18" :sm="18" :lg="18" class="card-panel-col">
           <el-tabs v-model="activeName" tab-position="left" @tab-click="handleTabClick">
-            <el-tab-pane label="数据状态" name="1">
-              <Terminal title="日志" showHeader :init="checkObj.init"
+            <el-tab-pane :label="$t('msg.statusData')" name="1">
+              <Terminal :title="$t('msg.title.log')" showHeader :init="checkObj.init"
                         :data="checkObj.logs"/>
             </el-tab-pane>
-            <el-tab-pane label="重建索引" name="2">
-              <Terminal title="日志" showHeader :init="rebuildIndexObj.init"
+            <el-tab-pane :label="$t('msg.operation.rebuildIndex')" name="2">
+              <Terminal :title="$t('msg.title.log')" showHeader :init="rebuildIndexObj.init"
                         :data="rebuildIndexObj.logs"/>
             </el-tab-pane>
-            <el-tab-pane label="清理数据" name="3">
-              <Terminal title="日志" showHeader :init="pruneObj.init"
+            <el-tab-pane :label="$t('msg.operation.prune')" name="3">
+              <Terminal :title="$t('msg.title.log')" showHeader :init="pruneObj.init"
                         :data="pruneObj.logs"/>
             </el-tab-pane>
-            <el-tab-pane label="版本升级" name="5">
-              <Terminal title="日志" showHeader :init="migrateObj.init"
+            <el-tab-pane :label="$t('msg.repositoryVersion')" name="5">
+              <Terminal :title="$t('msg.title.log')" showHeader :init="migrateObj.init"
                         :data="migrateObj.logs"/>
             </el-tab-pane>
 

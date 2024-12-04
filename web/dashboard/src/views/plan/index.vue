@@ -64,7 +64,7 @@
         </template>
       </el-table-column>
       <el-table-column prop="createdAt" align="center" :label="$t('msg.createdAt')" :formatter="dateFormat"/>
-      <el-table-column align="center" label="操作" width="200">
+      <el-table-column align="center" :label="$t('msg.title.operation')" width="200">
         <template slot-scope="{row}">
           <el-button-group>
             <el-button type="success" size="small" @click="backupHandler(row.id)"
@@ -124,7 +124,7 @@
             />
           </el-popover>
           <el-button type="text" @click="cronNext(temp.execTimeCron)">{{ $t('msg.nextTriggerTime') }}</el-button>
-          <span style="margin-left: 20px;color: red">{{ $t('msg.cronNotice') }}</span>
+          <span style="margin-left: 20px;color: red">{{ $t('msg.tips.cronNotice') }}</span>
         </el-form-item>
         <el-form-item :label="$t('msg.readConcurrency')" prop="ReadConcurrency">
           <el-input v-model="temp.readConcurrency" clearable>
@@ -150,7 +150,7 @@
       </div>
     </el-dialog>
     <el-dialog
-      title="下次执行时间"
+      :title="$t('msg.nextTriggerTime')"
       :visible.sync="dialogVisible"
       width="20%"
     >
@@ -164,7 +164,7 @@
       </span>
     </el-dialog>
     <el-dialog
-      title="选择文件夹"
+      :title="$t('msg.selectDir')"
       :visible.sync="dialogDirVisible"
     >
       <div>
@@ -188,7 +188,7 @@
               class="confirmbtn"
               size="mini"
               @click="confirmDirSelect(item.path)">
-                    确定
+                    {{ $t('msg.confirm') }}
                   </el-button>
           </span>
         </span>
@@ -196,12 +196,12 @@
       </div>
       <div slot="footer" class="dialog-footer">
         <el-button @click="dialogDirVisible = false">
-          取消
+          {{ $t('msg.cancel') }}
         </el-button>
         <el-button
           type="primary"
           @click="confirmDirSelect()">
-          确定
+          {{ $t('msg.confirm') }}
         </el-button>
       </div>
     </el-dialog>
@@ -225,8 +225,8 @@ export default {
   data() {
     return {
       status: [
-        {name: '运行', status: 1},
-        {name: '停止', status: 2}
+        {name: this.$t('msg.run'), status: 1},
+        {name: this.$t('msg.stop'), status: 2}
       ],
       dialogDirVisible: false,
       dirCur: "/",
@@ -245,8 +245,8 @@ export default {
         pageSize: 10
       },
       textMap: {
-        update: '修改',
-        create: '创建'
+        update: this.$t('msg.operation.update'),
+        create: this.$t('msg.operation.create')
       },
       cronPopover: false,
       dialogStatus: '',
@@ -264,11 +264,11 @@ export default {
         readConcurrency: 2
       },
       rules: {
-        name: [{required: true, message: '该项为必填项', trigger: 'blur'}],
+        name: [{required: true, message: this.$t('msg.tips.emptyError'), trigger: 'blur'}],
         status: [{required: true, message: '请选择类型', trigger: 'change'}],
-        path: [{required: true, message: '该项为必填项', trigger: 'blur'}],
-        execTimeCron: [{required: true, message: '该项为必填项', trigger: 'blur'}],
-        repositoryId: [{required: true, message: '该项为必填项', trigger: 'change'}]
+        path: [{required: true, message: this.$t('msg.tips.emptyError'), trigger: 'blur'}],
+        execTimeCron: [{required: true, message: this.$t('msg.tips.emptyError'), trigger: 'blur'}],
+        repositoryId: [{required: true, message: this.$t('msg.tips.emptyError'), trigger: 'change'}]
       }
     }
   },
@@ -320,7 +320,7 @@ export default {
         })
       })
       res.unshift({
-        name: '根',
+        name: this.$t('msg.root'),
         path: '/'
       })
       return res
@@ -354,7 +354,7 @@ export default {
       })
     },
     filterRepo(row, column, cellValue, index) {
-      let res = '存储库已删除'
+      let res = this.$t('msg.tips.repositoryNotFound')
       this.repositoryList.forEach(value => {
         if (value.id === cellValue) {
           res = value.name
@@ -406,34 +406,34 @@ export default {
       this.fullscreenLoading = true
       fetchBackup(planid).then(() => {
         this.$notify.success({
-          title: '备份中...',
+          title: this.$t('msg.tips.backuping'),
           dangerouslyUseHTMLString: true,
-          message: '请前往"<a style="color: #409EFF" href="/Task/index">任务记录</a>"查看'
+          message: '<a style="color: #409EFF" href="/Task/index">'+this.$t('msg.tasks')+'</a>'
         })
       }).finally(() => {
         this.fullscreenLoading = false
       })
     },
     handleDel(id) {
-      this.$confirm('确认删除该计划吗？', '删除', {
+      this.$confirm(this.$t('msg.tips.confirmDel')+this.$t('msg.plan')+'？', this.$t('msg.operation.delete'), {
         type: 'warning'
       }).then(() => {
         this.listLoading = true
         fetchDel(id).then(() => {
-          this.$notify.success('删除成功！')
+          this.$notify.success(this.$t('msg.success'))
           this.getList()
         }).finally(() => {
           this.listLoading = false
         })
       }).catch(() => {
-        this.$notify.info('取消删除')
+        this.$notify.info(this.$t('msg.cancel'))
       })
     },
     updateData() {
       this.$refs['dataForm'].validate((valid) => {
         if (valid) {
           if (!this.temp.execTimeCron) {
-            this.$notify.error('请输入定时备份cron表达式')
+            this.$notify.error(this.$t('msg.tips.cronErr'))
             return
           }
           this.buttonLoading = true
@@ -443,7 +443,7 @@ export default {
             this.temp.readConcurrency = Number(this.temp.readConcurrency)
           }
           fetchUpdate(this.temp).then(() => {
-            this.$notify.success('修改成功！')
+            this.$notify.success(this.$t('msg.success'))
             this.buttonLoading = false
             this.dialogFormVisible = false
             this.getList()
@@ -457,7 +457,7 @@ export default {
       this.$refs['dataForm'].validate((valid) => {
         if (valid) {
           if (!this.temp.execTimeCron) {
-            this.$notify.error('请输入定时备份cron表达式')
+            this.$notify.error(this.$t('msg.tips.cronErr'))
             return
           }
           this.buttonLoading = true
@@ -468,7 +468,7 @@ export default {
           }
           fetchCreate(this.temp).then(res => {
             var planid = res.data
-            this.$notify.success('创建成功！')
+            this.$notify.success(this.$t('msg.success'))
             this.getList()
             if (this.temp.immediate) {
               this.backupHandler(planid)
