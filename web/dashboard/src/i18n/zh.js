@@ -10,6 +10,14 @@ export const msg = {
     support: '技术支持',
     captcha: '验证码'
   },
+  common: {
+    loading: '获取中',
+    error: '错误',
+    normal: '正常'
+  },
+  error: {
+    serverError: '服务器错误，请稍后再试'
+  },
   title: {
     dashboard: '首页',
     profile: '个人中心',
@@ -143,7 +151,10 @@ export const msg = {
     close: '关闭',
     max: '最大'
   },
-  repository: '存储库',
+  repository: {
+    unlockSuccess: '成功清理{count}个锁',
+    loading: '加载中'
+  },
   repositoryId: '存储库ID',
   snapshot: '快照',
   snapshots: '快照数量',
@@ -182,7 +193,7 @@ export const msg = {
   selectDir: '选择文件夹',
   latestTime: '最新统计时间',
   protectDate: '数据保护天数',
-  unit: '单位',
+  unitLabel: '单位',
   taskInfo: '任务信息',
   repositoryVersion: '格式版本',
   root: '根',
@@ -224,5 +235,38 @@ export const msg = {
   deleteSnapshot: '删除快照',
   confirmExecuteCleanupPolicy: '确定执行清理策略吗？',
   executeCleanupPolicy: '执行清理策略',
-  pleaseSelectType: '请选择类型'
+  pleaseSelectType: '请选择类型',
+  format: {
+    days: '天'
+  },
+  restore: {
+    title: '恢复确认',
+    confirmMessage: '确定要恢复快照 {id} 吗？',
+    inProgress: '恢复进行中',
+    checkTaskMessage: '请在<a href="#/task">任务</a>页面查看进度',
+    defaultPathTip: '默认恢复到"/"，恢复数据即文件原来的路径，若修改，则数据还原路径为当前选择路径加备份路径，例：/root{path}，/root为本次选择路径',
+    verifyTip: '开启数据完整性校验，校验时间较长，请谨慎选择！'
+  },
+  packSize: '包大小',
+  unit: {
+    mib: 'MiB'
+  },
+  cloud: {
+    accessKey: 'Access Key',
+    secretKey: 'Secret Key',
+    awsAccessKeyId: 'AWS_ACCESS_KEY_ID',
+    awsSecretAccessKey: 'AWS_SECRET_ACCESS_KEY',
+    secretId: 'SecretID',
+    txSecretKey: 'SecretKey'
+  },
+  placeholder: {
+    s3: 'http(s)://s3host:port',
+    oss: 'https://<OSS-ENDPOINT>',
+    sftp: 'user@host:/data/my_backup_repo',
+    local: '/data/my_backup_repo',
+    rest: 'http(s)://host:8000/my_backup_repo/'
+  },
+  system: {
+    upgrading: '系统升级中'
+  }
 }

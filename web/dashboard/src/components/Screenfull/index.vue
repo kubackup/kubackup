@@ -24,7 +24,8 @@ export default {
     click() {
       if (!screenfull.enabled) {
         this.$notify({
-          message: 'you browser can not work',
+          title: this.$t('common.warning'),
+          message: this.$t('error.browserNotSupported'),
           type: 'warning'
         })
         return false

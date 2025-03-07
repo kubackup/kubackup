@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"github.com/kubackup/kubackup/internal/i18n"
 )
 
 type BackupServer struct {
@@ -221,6 +222,7 @@ func (e *BackupServer) setResultHandler() {
 				"systemStatus": system_status.Normal,
 				"data":         ctx.Values().Get("data"),
 				"isDocker":     e.isDocker,
+				"lang":         i18n.GetLanguage(ctx),
 			}
 			_ = ctx.JSON(resp, iris.JSON{})
 		}
@@ -230,10 +232,12 @@ func (e *BackupServer) setResultHandler() {
 // 全局异常处理
 func (e *BackupServer) setUpErrHandler() {
 	e.rootRoute.OnAnyErrorCode(func(ctx iris.Context) {
+		lang := i18n.GetLanguage(ctx)
+		
 		if ctx.Values().GetString("message") == "" {
 			switch ctx.GetStatusCode() {
 			case iris.StatusNotFound:
-				ctx.Values().Set("message", "the server could not find the requested resource")
+				ctx.Values().Set("message", i18n.T("error.notFound", lang))
 			}
 		}
 		message := ctx.Values().Get("message")
@@ -243,6 +247,7 @@ func (e *BackupServer) setUpErrHandler() {
 			"code":         ctx.GetStatusCode(),
 			"message":      message,
 			"isDocker":     e.isDocker,
+			"lang":         lang,
 		}
 		ctx.StatusCode(iris.StatusOK)
 		_ = ctx.JSON(er, iris.JSON{})

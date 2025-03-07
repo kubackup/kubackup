@@ -404,7 +404,7 @@ export default {
             that.sockjsOpen = false
             that.$notify({
               type: 'error',
-              title: this.$t('msg.err'),
+              title: that.$t('common.error'),
               message: data.message
             })
           } else {
@@ -429,7 +429,10 @@ export default {
             this.taskInfo.progress = msg
             break
           case 'error':
-            this.$notify.error(msg.during + '\n' + msg.error + '\n' + msg.item)
+            this.$notify.error({
+              title: this.$t('common.error'),
+              message: msg.during + '\n' + msg.error + '\n' + msg.item
+            })
             break
           case 'verbose_status':
             let log

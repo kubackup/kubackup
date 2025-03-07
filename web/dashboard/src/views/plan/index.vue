@@ -3,10 +3,10 @@
     <div class="handle-search">
       <el-form :model="listQuery" inline @submit.native.prevent>
         <el-form-item :label="$t('msg.name')">
-          <el-input v-model="listQuery.name" placeholder="name" style="width: 150px;" class="filter-item" clearable/>
+          <el-input v-model="listQuery.name" :placeholder="$t('msg.name')" style="width: 150px;" class="filter-item" clearable/>
         </el-form-item>
         <el-form-item :label="$t('msg.path')">
-          <el-input v-model="listQuery.path" placeholder="path" style="width: 150px;" class="filter-item" clearable/>
+          <el-input v-model="listQuery.path" :placeholder="$t('msg.path')" style="width: 150px;" class="filter-item" clearable/>
         </el-form-item>
         <el-form-item :label="$t('msg.repository')">
           <el-select v-model="listQuery.repositoryId" class="handle-select mr5" clearable :placeholder="$t('msg.pleaseSelect')">
@@ -102,7 +102,7 @@
             <el-button slot="append" @click="openDirSelect()">{{ $t('msg.select') }}</el-button>
           </el-input>
         </el-form-item>
-        <el-form-item :label="$t('msg.repository')" prop="repositoryId">
+        <el-form-item :label="$t('msg.title.repository')" prop="repositoryId">
           <el-select v-model="temp.repositoryId" :placeholder="$t('msg.pleaseSelect')">
             <el-option v-for="item in repositoryList" :key="item.id" :label="item.name" :value="item.id"/>
           </el-select>
@@ -126,7 +126,7 @@
           <el-button type="text" @click="cronNext(temp.execTimeCron)">{{ $t('msg.nextTriggerTime') }}</el-button>
           <span style="margin-left: 20px;color: red">{{ $t('msg.tips.cronNotice') }}</span>
         </el-form-item>
-        <el-form-item :label="$t('msg.readConcurrency')" prop="ReadConcurrency">
+        <el-form-item :label="$t('msg.readConcurrency')" prop="readConcurrency">
           <el-input v-model="temp.readConcurrency" clearable>
             <template slot="append">{{ $t('msg.default') }} 2</template>
           </el-input>

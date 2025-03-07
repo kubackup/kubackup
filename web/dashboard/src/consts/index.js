@@ -13,6 +13,20 @@ export const repoTypeList = [
 ]
 
 /**
+ * 存储库类型（英文）
+ * @type {[{code: number, name: string}, {code: number, name: string}, null]}
+ */
+export const repoTypeListEN = [
+  { code: 1, name: 'S3', tips: 'Minio' },
+  { code: 3, name: 'Sftp', tips: 'Not recommended' },
+  { code: 4, name: 'Local', tips: 'Recommended for testing' },
+  { code: 5, name: 'Rest', tips: 'Recommended' },
+  { code: 6, name: 'HwObs', tips: 'Huawei Cloud Object Storage' },
+  { code: 2, name: 'AliOos', tips: 'Alibaba Cloud Object Storage' },
+  { code: 7, name: 'TxCos', tips: 'Tencent Cloud Object Storage' }
+]
+
+/**
  * 清除策略类型
  * @type {[{code: number, name: string, tips: string},{code: string, name: string, tips: string},{code: number, name: string, tips: string},{code: number, name: string, tips: string},{code: number, name: string, tips: string},null]}
  */

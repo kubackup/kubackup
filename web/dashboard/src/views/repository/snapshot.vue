@@ -348,7 +348,7 @@ export default {
             that.sockjsOpen = false
             that.$notify({
               type: 'error',
-              title: '错误',
+              title: that.$t('common.error'),
               message: data.message
             })
           } else {

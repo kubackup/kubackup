@@ -115,7 +115,7 @@ export default {
         password: [{required: true, trigger: 'blur', validator: validatePassword}]
       },
       options: {
-        'zh-CN': this.$t('msg.zhCN'),
+        'zh-CN': '中文',
         'en-US': 'English'
       },
       passwordType: 'password',

@@ -254,11 +254,11 @@ func InitRepository() {
 // GetRepository 获取仓库操作对象
 func GetRepository(repoid int) (*Repository, error) {
 	if repoid <= 0 {
-		return nil, errors.Errorf("仓库id不能为空")
+		return nil, errors.Errorf("error.invalidRepositoryId")
 	}
 	myrepository := Myrepositorys.rep[repoid]
 	if myrepository.repo == nil {
-		return nil, fmt.Errorf("仓库不存在！")
+		return nil, fmt.Errorf("error.repositoryNotFound")
 	} else {
 		return &myrepository, nil
 	}
@@ -270,7 +270,7 @@ func init() {
 
 func ReadRepo(opts GlobalOptions) (string, error) {
 	if opts.Repo == "" {
-		return "", errors.Errorf("Please specify repository location (-r or --repository-file)")
+		return "", errors.Errorf("error.repositoryLocationRequired")
 	}
 	repo := opts.Repo
 	return repo, nil
@@ -319,7 +319,7 @@ func OpenRepository(ctx context.Context, opts GlobalOptions) (*repository.Reposi
 	if err != nil {
 		opts.password = ""
 		//密码错误
-		return nil, errors.Errorf("仓库密码错误")
+		return nil, errors.Errorf("error.invalidRepositoryPassword")
 	}
 	id := s.Config().ID
 	if len(id) > 8 {

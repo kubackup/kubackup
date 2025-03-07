@@ -1,9 +1,10 @@
 import axios from 'axios'
-import {Notification, Loading} from 'element-ui'
+import { Notification, Loading } from 'element-ui'
 import store from '@/store'
-import {getToken} from '@/utils/auth'
+import { getToken } from '@/utils/auth'
 import router from '@/router'
-import {fetchVersion} from '@/api/system'
+import { fetchVersion } from '@/api/system'
+import { i18n } from '@/i18n'
 
 // create an axios instance
 const service = axios.create({
@@ -20,6 +21,10 @@ service.interceptors.request.use(
         config.headers['Authorization'] = 'Bearer ' + getToken().token
       }
     }
+
+    // 添加语言设置到请求头
+    config.headers['Accept-Language'] = i18n.locale
+
     return config
   },
   error => {
@@ -40,7 +45,7 @@ const isTokenExpired = () => {
 
 let isRefreshing = false
 
-const refreshToken = async () => {
+const refreshToken = async() => {
   if (isTokenExpired() && !isRefreshing) {
     isRefreshing = true
     await store.dispatch('user/refreshToken').finally(() => {
@@ -58,13 +63,13 @@ let loading = null
 const getLoadingText = (load) => {
   switch (load) {
     case 'normal':
-      return '正常'
+      return i18n.t('msg.common.normal')
     case 'loading':
-      return '仓库正在加载中，请稍后...'
+      return i18n.t('msg.repository.loading')
     case 'upgrading':
-      return '升级中...升级成功后，macOs 需自行重启，linux用户等待自动重启完成即可'
+      return i18n.t('msg.system.upgrading')
     default:
-      return '正常'
+      return i18n.t('msg.common.normal')
   }
 }
 
@@ -115,13 +120,19 @@ service.interceptors.response.use(
         router.push('/403')
       } else {
         Notification({
-          title: '错误',
-          message: res.message || 'Error',
+          title: i18n.t('msg.common.error'),
+          message: res.message || i18n.t('msg.error.serverError'),
           type: 'error'
         })
-        return Promise.reject(new Error(res.message || 'Error'))
+        return Promise.reject(new Error(res.message || i18n.t('msg.error.serverError')))
       }
     } else {
+      // 如果响应中包含语言设置，更新当前语言
+      if (res.lang && res.lang !== i18n.locale) {
+        i18n.locale = res.lang
+        localStorage.setItem('locale', res.lang)
+      }
+
       RepoLoading = res.systemStatus
       checkRepoLoading()
       return res
@@ -129,10 +140,16 @@ service.interceptors.response.use(
   },
   error => {
     Notification({
-      title: '错误',
+      title: i18n.t('msg.common.error'),
       message: error.message,
       type: 'error'
     })
+
+    // 处理HTTP状态码403的情况
+    if (error.response && error.response.status === 403) {
+      router.push('/403')
+    }
+
     return Promise.reject(error)
   }
 )

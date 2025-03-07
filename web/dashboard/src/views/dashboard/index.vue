@@ -58,7 +58,7 @@
     </el-row>
     <el-row :gutter="40" class="panel-group">
       <el-col :xs="12" :sm="12" :lg="8" class="card-panel-col">
-        <pie_chart :title="$t('msg.data')" :cdata="chartsize" theme="shine" :seriesname="$t('msg.unit')+'：GB'"/>
+        <pie_chart :title="$t('msg.data')" :cdata="chartsize" theme="shine" :seriesname="$t('msg.unitLabel')+'：GB'"/>
       </el-col>
       <el-col :xs="12" :sm="12" :lg="8" class="card-panel-col">
         <pie_chart :title="$t('msg.files')" :cdata="chartfile" theme="shine"/>

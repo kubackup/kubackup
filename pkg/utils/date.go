@@ -22,8 +22,10 @@ func FormatSeconds(sec uint64) string {
 	return fmt.Sprintf("%d:%02d", min, sec)
 }
 
+// FormatDay 格式化天数
+// 注意：这里返回的是一个通用格式，前端应该根据语言环境进行翻译
 func FormatDay(sec uint64) string {
-	return fmt.Sprintf("%d 天", sec/(3600*24))
+	return fmt.Sprintf("%d days", sec/(3600*24))
 }
 
 func FormatPercent(numerator uint64, denominator uint64) string {

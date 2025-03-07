@@ -207,7 +207,7 @@ func (t *TxCos) Save(ctx context.Context, handle restic.Handle, rd restic.Rewind
 
 	_, err := t.client.Object.Put(ctx, objName, io.NopCloser(rd), opt)
 	if t.IsAccessDenied(err) {
-		return fmt.Errorf("权限不足")
+		return fmt.Errorf("error.accessDenied")
 	}
 	if err != nil {
 		return err

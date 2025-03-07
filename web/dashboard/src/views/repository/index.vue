@@ -3,7 +3,7 @@
     <div class="handle-search">
       <el-form :model="listQuery" inline @submit.native.prevent>
         <el-form-item :label="$t('msg.name')">
-          <el-input v-model="listQuery.name" placeholder="name" style="width: 150px;" class="filter-item" clearable/>
+          <el-input v-model="listQuery.name" :placeholder="$t('msg.name')" style="width: 150px;" class="filter-item" clearable/>
         </el-form-item>
         <el-form-item :label="$t('msg.type')">
           <el-select v-model="listQuery.type" class="handle-select mr5" :placeholder="$t('msg.pleaseSelect')">
@@ -113,22 +113,22 @@
         <el-form-item v-if="temp.type===1||temp.type===2||temp.type===6" :label="$t('msg.bucket')" prop="bucket">
           <el-input v-model="temp.bucket" clearable/>
         </el-form-item>
-        <el-form-item v-if="temp.type===6" label="Access Key" prop="keyId">
+        <el-form-item v-if="temp.type===6" :label="$t('msg.cloud.accessKey')" prop="keyId">
           <el-input v-model="temp.keyId" clearable/>
         </el-form-item>
-        <el-form-item v-if="temp.type===6" label="Secret Key" prop="secret">
+        <el-form-item v-if="temp.type===6" :label="$t('msg.cloud.secretKey')" prop="secret">
           <el-input v-model="temp.secret" type="password" show-password clearable/>
         </el-form-item>
-        <el-form-item v-if="temp.type===1||temp.type===2" label="AWS_ACCESS_KEY_ID" prop="keyId">
+        <el-form-item v-if="temp.type===1||temp.type===2" :label="$t('msg.cloud.awsAccessKeyId')" prop="keyId">
           <el-input v-model="temp.keyId" clearable/>
         </el-form-item>
-        <el-form-item v-if="temp.type===1||temp.type===2" label="AWS_SECRET_ACCESS_KEY" prop="secret">
+        <el-form-item v-if="temp.type===1||temp.type===2" :label="$t('msg.cloud.awsSecretAccessKey')" prop="secret">
           <el-input v-model="temp.secret" type="password" show-password clearable/>
         </el-form-item>
-        <el-form-item v-if="temp.type===7" label="SecretID" prop="keyId">
+        <el-form-item v-if="temp.type===7" :label="$t('msg.cloud.secretId')" prop="keyId">
           <el-input v-model="temp.keyId" clearable/>
         </el-form-item>
-        <el-form-item v-if="temp.type===7" label="SecretKey" prop="secret">
+        <el-form-item v-if="temp.type===7" :label="$t('msg.cloud.txSecretKey')" prop="secret">
           <el-input v-model="temp.secret" type="password" show-password clearable/>
         </el-form-item>
         <el-form-item v-if="temp.type===5" :label="$t('msg.login.username')" prop="keyId">
@@ -143,14 +143,14 @@
         <el-form-item v-if="dialogStatus === 'create'" :label="$t('msg.reposPwdSec')" prop="confirmPassword">
           <el-input v-model="temp.confirmPassword" show-password clearable type="password"/>
         </el-form-item>
-        <el-form-item v-if="dialogStatus === 'create'" :label="$t('msg.compression')" prop="type">
+        <el-form-item v-if="dialogStatus === 'create'" :label="$t('msg.compression')" prop="compression">
           <el-select v-model="temp.compression" :placeholder="$t('msg.pleaseSelect')">
             <el-option v-for="item in compressionList" :key="item.code" :label="item.name" :value="item.code"/>
           </el-select>
         </el-form-item>
-        <el-form-item label="PackSize" prop="PackSize">
+        <el-form-item :label="$t('msg.packSize')" prop="packSize">
           <el-input v-model="temp.packSize" clearable>
-            <template slot="append">MiB</template>
+            <template slot="append">{{ $t('msg.unit.mib') }}</template>
           </el-input>
         </el-form-item>
       </el-form>
@@ -173,7 +173,7 @@
 <script>
 import {fetchCreate, fetchDel, fetchList, fetchUpdate} from '@/api/repository'
 import {dateFormat} from '@/utils'
-import {repoStatusList, repoStatusListEN, repoTypeList, compressionList, compressionListEN} from "@/consts";
+import {repoStatusList, repoStatusListEN, repoTypeList, repoTypeListEN, compressionList, compressionListEN} from "@/consts";
 
 export default {
   name: 'RepositoryList',
@@ -188,9 +188,6 @@ export default {
       }
     }
     return {
-      typeList: repoTypeList,
-      statusList: this.$i18n.locale === 'zh-CN' ? repoStatusList : repoStatusListEN,
-      compressionList: this.$i18n.locale === 'zh-CN' ? compressionList : compressionListEN,
       list: [],
       listLoading: false,
       listQuery: {
@@ -235,7 +232,20 @@ export default {
         secret: [{required: true, message: this.$t('msg.tips.emptyError'), trigger: 'blur'}],
         password: [{required: true, message: this.$t('msg.tips.emptyError'), trigger: 'blur'}],
         confirmPassword: [{required: true, validator: validatePassword, trigger: 'blur'}],
+        packSize: [{required: true, message: this.$t('msg.tips.emptyError'), trigger: 'blur'}],
+        compression: [{required: false, message: this.$t('msg.tips.emptyError'), trigger: 'change'}]
       }
+    }
+  },
+  computed: {
+    typeList() {
+      return this.$i18n.locale === 'zh-CN' ? repoTypeList : repoTypeListEN
+    },
+    statusList() {
+      return this.$i18n.locale === 'zh-CN' ? repoStatusList : repoStatusListEN
+    },
+    compressionList() {
+      return this.$i18n.locale === 'zh-CN' ? compressionList : compressionListEN
     }
   },
   created() {
@@ -271,19 +281,19 @@ export default {
       this.endPointPlaceholder = ''
       switch (val) {
         case 1:
-          this.endPointPlaceholder = 'http(s)://s3host:port'
+          this.endPointPlaceholder = this.$t('msg.placeholder.s3')
           break
         case 2:
-          this.endPointPlaceholder = 'https://<OSS-ENDPOINT>'
+          this.endPointPlaceholder = this.$t('msg.placeholder.oss')
           break
         case 3:
-          this.endPointPlaceholder = 'user@host:/data/my_backup_repo'
+          this.endPointPlaceholder = this.$t('msg.placeholder.sftp')
           break
         case 4:
-          this.endPointPlaceholder = '/data/my_backup_repo'
+          this.endPointPlaceholder = this.$t('msg.placeholder.local')
           break
         case 5:
-          this.endPointPlaceholder = 'http(s)://host:8000/my_backup_repo/'
+          this.endPointPlaceholder = this.$t('msg.placeholder.rest')
           break
       }
     },

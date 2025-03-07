@@ -123,9 +123,7 @@
           <el-input v-model="restoreOpt.dirCur" disabled>
             <el-button slot="append" @click="openDirSelect()">{{ $t('msg.select') }}</el-button>
           </el-input>
-          <span style="color: red">默认恢复到"/"，恢复数据即文件原来的路径，若修改，则数据还原路径为当前选择路径加备份路径，例：/root{{
-              listQuery.path
-            }}，/root为本次选择路径</span>
+          <span style="color: red">{{ $t('restore.defaultPathTip', {path: listQuery.path}) }}</span>
         </el-form-item>
         <el-form-item :label="$t('msg.title.finalPath')+'：'" prop="path">
           <span>{{ restoreOpt.dist }}</span>
@@ -134,7 +132,7 @@
           <el-switch
             v-model="restoreOpt.verify">
           </el-switch>
-          <p style="color: red">开启数据完整性校验，校验时间较长，请谨慎选择！</p>
+          <p style="color: red">{{ $t('restore.verifyTip') }}</p>
         </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
@@ -406,7 +404,7 @@ export default {
     },
     restoreSnapHandler() {
       const snapid = this.restoreOpt.snapid
-      this.$confirm('确认执行恢复<' + snapid + '>操作吗？该操作可能非常耗时！', '恢复数据', {
+      this.$confirm(this.$t('restore.confirmMessage', {id: snapid}), this.$t('restore.title'), {
         type: 'warning'
       }).then(() => {
         const data = {
@@ -418,8 +416,8 @@ export default {
           this.dialogDirVisible = false
           this.dialogFormVisible = false
           this.$notify.success({
-            title: '恢复中...',
-            message: '请前往"<a style="color: #409EFF" href="/Task/index">任务记录</a>"查看',
+            title: this.$t('restore.inProgress'),
+            message: this.$t('restore.checkTaskMessage'),
             dangerouslyUseHTMLString: true
           })
         }).finally(() => {
@@ -427,7 +425,7 @@ export default {
           this.dialogFormVisible = false
         })
       }).catch(() => {
-        this.$notify.info({title: '取消'})
+        this.$notify.info({title: this.$t('common.cancel')})
       })
     },
     loadSnapFiles(snap) {
@@ -441,7 +439,7 @@ export default {
         pageSize: this.filedata.pageSize,
         name: '',
         path: this.filedata.path,
-        label: '加载更多',
+        label: this.$t('msg.tips.loadMore'),
         isMore: 1,
         type: 'btn',
         mode: 755,
@@ -501,7 +499,7 @@ export default {
               pageSize: size,
               path: node.path,
               name: '',
-              label: '加载更多',
+              label: this.$t('msg.tips.loadMore'),
               isMore: 1,
               type: 'btn',
               mode: node.mode,
@@ -577,7 +575,7 @@ export default {
           more = l
           if (Number(num) * Number(size) >= total) {
             more.isMore = 2
-            more.label = '没有更多了'
+            more.label = this.$t('msg.tips.noMoreData')
           }
           return
         }

@@ -104,7 +104,7 @@ import {dateFormat} from "@/utils";
 import SockJS from 'sockjs-client'
 import {getToken} from "@/utils/auth";
 import {ws_log} from "@/api/ws";
-import {repoStatusList, repoTypeList} from "@/consts";
+import {repoStatusList, repoStatusListEN, repoTypeList, repoTypeListEN} from "@/consts";
 
 export default {
   name: 'Operation',
@@ -141,9 +141,15 @@ export default {
       },
       sock: null,
       curSockObj: 1,
-      activeName: '1',
-      statusList: repoStatusList,
-      typeList: repoTypeList
+      activeName: '1'
+    }
+  },
+  computed: {
+    statusList() {
+      return this.$i18n.locale === 'zh-CN' ? repoStatusList : repoStatusListEN
+    },
+    typeList() {
+      return this.$i18n.locale === 'zh-CN' ? repoTypeList : repoTypeListEN
     }
   },
   created() {
@@ -200,7 +206,7 @@ export default {
     },
     unlockHandler() {
       fetchUnlock(this.listQuery.id).then(res => {
-        this.$notify.success('成功清理' + res.data + '个锁')
+        this.$notify.success(this.$t('repository.unlockSuccess', {count: res.data}))
       })
     },
     getLastOper(type) {
@@ -270,7 +276,7 @@ export default {
             if (data.message) {
               that.$notify({
                 type: 'error',
-                title: '错误',
+                title: that.$t('common.error'),
                 message: data.message
               })
               that.getLastOper(that.curSockObj)
@@ -298,7 +304,7 @@ export default {
     formatStatus(code) {
       let res = this.statusList.find(item => item.code === code)
       if (!res) {
-        res = {code: 1, name: '获取中', color: 'info'}
+        res = {code: 1, name: this.$t('common.loading'), color: 'info'}
       }
       return res
     },

@@ -6,6 +6,7 @@ import (
 	"github.com/kubackup/kubackup/internal/api"
 	v1 "github.com/kubackup/kubackup/internal/api/v1"
 	"github.com/kubackup/kubackup/internal/cron"
+	"github.com/kubackup/kubackup/internal/i18n"
 	"github.com/kubackup/kubackup/internal/server"
 	"github.com/kubackup/kubackup/internal/service/v1/user"
 	"github.com/kubackup/kubackup/pkg/utils"
@@ -14,6 +15,10 @@ import (
 
 func InitRoute(party iris.Party) {
 	initOthers()
+	
+	// 添加语言中间件
+	party.Use(i18n.LanguageMiddleware())
+	
 	apiParty := party.Party("/api")
 	api.AddPingRoute(apiParty)
 	v1.AddV1Route(apiParty)

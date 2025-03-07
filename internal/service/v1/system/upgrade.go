@@ -15,10 +15,10 @@ import (
 
 func Upgrade(version string) error {
 	if server.IsDocker() {
-		return fmt.Errorf("当前运行在docker环境，请自行更新容器镜像版本")
+		return fmt.Errorf("error.dockerUpgradeNotSupported")
 	}
 	if version == "" {
-		return fmt.Errorf("版本号不能为空")
+		return fmt.Errorf("error.versionRequired")
 	}
 	timeStr := time.Now().Format("200601021504")
 	upgradeDir := path.Join(server.Config().Data.CacheDir, fmt.Sprintf("upgrade/upgrade_%s/downloads", timeStr))

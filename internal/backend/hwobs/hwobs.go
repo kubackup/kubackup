@@ -158,10 +158,10 @@ func (h *HwObs) Remove(ctx context.Context, handle restic.Handle) error {
 	}
 	_, err := h.client.DeleteObject(input)
 	if h.IsAccessDenied(err) {
-		return fmt.Errorf("权限不足")
+		return fmt.Errorf("error.accessDenied")
 	}
 	if h.IsNotExist(err) {
-		return fmt.Errorf("404")
+		return fmt.Errorf("error.notFound")
 	}
 	if err != nil {
 		return err
@@ -191,7 +191,7 @@ func (h *HwObs) Save(ctx context.Context, handle restic.Handle, rd restic.Rewind
 
 	_, err := h.client.PutObject(input)
 	if h.IsAccessDenied(err) {
-		return fmt.Errorf("权限不足")
+		return fmt.Errorf("error.accessDenied")
 	}
 	if err != nil {
 		return err
@@ -271,10 +271,10 @@ func (h *HwObs) List(ctx context.Context, t restic.FileType, fn func(restic.File
 		input.Prefix = prefix
 		output, err := h.client.ListObjects(input)
 		if h.IsAccessDenied(err) {
-			return fmt.Errorf("权限不足")
+			return fmt.Errorf("error.accessDenied")
 		}
 		if h.IsNotExist(err) {
-			return fmt.Errorf("404")
+			return fmt.Errorf("error.notFound")
 		}
 		if err != nil {
 			return err
