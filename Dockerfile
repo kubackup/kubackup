@@ -1,5 +1,5 @@
 # syntax = docker/dockerfile:experimental
-FROM node:16.13.1 AS buildvue
+FROM node:14.18.2 AS buildvue
 
 WORKDIR /dowell/
 COPY . /dowell/
