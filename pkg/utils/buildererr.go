@@ -13,11 +13,11 @@ func ErrorCode(ctx *context.Context, code int, err error) {
 	}
 	errstring := err.Error()
 	
-	// 获取当前语言
+	// Get current language
 	lang := i18n.GetLanguage(ctx)
 	
-	// 尝试翻译错误信息
-	// 如果错误信息是一个翻译键，则翻译它
+	// Try to translate error message
+	// If the error message is a translation key, translate it
 	translatedErr := i18n.T(errstring, lang)
 	
 	ctx.StatusCode(code)
@@ -29,10 +29,10 @@ func Errore(ctx *context.Context, err error) {
 }
 
 func ErrorStr(ctx *context.Context, err string) {
-	// 获取当前语言
+	// Get current language
 	lang := i18n.GetLanguage(ctx)
 	
-	// 尝试翻译错误信息
+	// Try to translate error message
 	translatedErr := i18n.T(err, lang)
 	
 	Errore(ctx, fmt.Errorf(translatedErr))

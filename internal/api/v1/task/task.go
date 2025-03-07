@@ -28,8 +28,20 @@ func init() {
 	planService = plan.GetService()
 }
 
+// 设置当前语言
+func setCurrentLanguage(ctx *context.Context) {
+	lang := ctx.Values().GetString("language")
+	if lang == "" {
+		lang = ctx.GetHeader("Accept-Language")
+	}
+	resticProxy.SetCurrentLanguage(lang)
+}
+
 func backupHandler() iris.Handler {
 	return func(ctx *context.Context) {
+		// 设置当前语言
+		setCurrentLanguage(ctx)
+		
 		planid, err := ctx.Params().GetInt("planid")
 		if err != nil {
 			utils.Errore(ctx, err)
@@ -47,6 +59,9 @@ func backupHandler() iris.Handler {
 
 func restoreHandler() iris.Handler {
 	return func(ctx *context.Context) {
+		// 设置当前语言
+		setCurrentLanguage(ctx)
+		
 		snapshotid := ctx.Params().Get("snapshotid")
 		repository, err := ctx.Params().GetInt("repository")
 		if err != nil {
@@ -124,6 +139,9 @@ func restoreHandler() iris.Handler {
 
 func searchHandler() iris.Handler {
 	return func(ctx *context.Context) {
+		// 设置当前语言
+		setCurrentLanguage(ctx)
+		
 		res := model.PageParam(ctx)
 		status, err := ctx.URLParamInt("status")
 		if err != nil {
@@ -197,6 +215,9 @@ func ClearTaskRunning() {
 
 // Backup 备份数据 ，planid计划id
 func Backup(planid int) (int, error) {
+	// 设置当前语言，由于没有context参数，使用默认语言
+	resticProxy.SetCurrentLanguage("")
+	
 	pl, err := planService.Get(planid, common.DBOptions{})
 	if err != nil {
 		return 0, err

@@ -21,8 +21,20 @@ func init() {
 	repositoryService = repositoryDao.GetService()
 }
 
+// 设置当前语言
+func setCurrentLanguage(ctx *context.Context) {
+	lang := ctx.Values().GetString("language")
+	if lang == "" {
+		lang = ctx.GetHeader("Accept-Language")
+	}
+	resticProxy.SetCurrentLanguage(lang)
+}
+
 func createHandler() iris.Handler {
 	return func(ctx *context.Context) {
+		// 设置当前语言
+		setCurrentLanguage(ctx)
+
 		var policy repository.ForgetPolicy
 		err := ctx.ReadJSON(&policy)
 		if err != nil {
@@ -48,6 +60,9 @@ func createHandler() iris.Handler {
 
 func updateHandler() iris.Handler {
 	return func(ctx *context.Context) {
+		// 设置当前语言
+		setCurrentLanguage(ctx)
+
 		id, err := ctx.Params().GetInt("id")
 		if err != nil {
 			utils.Errore(ctx, err)
@@ -81,6 +96,9 @@ func updateHandler() iris.Handler {
 
 func listHandler() iris.Handler {
 	return func(ctx *context.Context) {
+		// 设置当前语言
+		setCurrentLanguage(ctx)
+
 		repoid, err := ctx.URLParamInt("repository")
 		if err != nil {
 			repoid = 0
@@ -97,6 +115,9 @@ func listHandler() iris.Handler {
 
 func delHanlder() iris.Handler {
 	return func(ctx *context.Context) {
+		// 设置当前语言
+		setCurrentLanguage(ctx)
+
 		id, err := ctx.Params().GetInt("id")
 		if err != nil {
 			utils.Errore(ctx, err)
@@ -113,6 +134,9 @@ func delHanlder() iris.Handler {
 
 func doHanlder() iris.Handler {
 	return func(ctx *context.Context) {
+		// 设置当前语言
+		setCurrentLanguage(ctx)
+
 		id, err := ctx.Params().GetInt("id")
 		if err != nil {
 			utils.Errore(ctx, err)
@@ -136,6 +160,52 @@ func doHanlder() iris.Handler {
 	}
 }
 
+func getHandler() iris.Handler {
+	return func(ctx *context.Context) {
+		// 设置当前语言
+		setCurrentLanguage(ctx)
+
+		id, err := ctx.Params().GetInt("id")
+		if err != nil {
+			utils.Errore(ctx, err)
+			return
+		}
+		policy, err := policyService.Get(id, common.DBOptions{})
+		if err != nil {
+			return
+		}
+		ctx.Values().Set("data", policy)
+	}
+}
+
+func executeHandler() iris.Handler {
+	return func(ctx *context.Context) {
+		// 设置当前语言
+		setCurrentLanguage(ctx)
+
+		id, err := ctx.Params().GetInt("id")
+		if err != nil {
+			utils.Errore(ctx, err)
+			return
+		}
+		policy, err := policyService.Get(id, common.DBOptions{})
+		if err != nil {
+			return
+		}
+		opt := resticProxy.ForgetOptions{
+			Prune:          true,
+			SnapshotFilter: restic.SnapshotFilter{Paths: []string{policy.Path}},
+		}
+		setType(policy.Type, policy.Value, &opt)
+		err = resticProxy.RunForgetSync(opt, policy.RepositoryId, []string{})
+		if err != nil {
+			utils.Errore(ctx, err)
+			return
+		}
+		ctx.Values().Set("data", "Policy executed successfully")
+	}
+}
+
 func Install(parent iris.Party) {
 	// 仓库相关接口
 	sp := parent.Party("/policy")
@@ -152,6 +222,9 @@ func Install(parent iris.Party) {
 }
 
 func DoPolicy() {
+	// 设置当前语言，由于没有context参数，使用默认语言
+	resticProxy.SetCurrentLanguage("")
+
 	reps, err := repositoryService.List(0, "", common.DBOptions{})
 	if err != nil {
 		return

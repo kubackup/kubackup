@@ -32,6 +32,14 @@ func createHandler() iris.Handler {
 			utils.ErrorStr(ctx, "请输入密码")
 			return
 		}
+		
+		// 设置当前语言
+		lang := ctx.Values().GetString("language")
+		if lang == "" {
+			lang = ctx.GetHeader("Accept-Language")
+		}
+		resticProxy.SetCurrentLanguage(lang)
+		
 		option, _ := resticProxy.GetGlobalOptions(rep)
 		repo, err1 := resticProxy.OpenRepository(ctx, option)
 		if err1 != nil {
@@ -126,6 +134,18 @@ func updateHandler() iris.Handler {
 			rep2.Endpoint = rep.Endpoint
 		}
 		rep2.PackSize = rep.PackSize
+		if rep2.Password == "" {
+			utils.ErrorStr(ctx, "请输入密码")
+			return
+		}
+		
+		// 设置当前语言
+		lang := ctx.Values().GetString("language")
+		if lang == "" {
+			lang = ctx.GetHeader("Accept-Language")
+		}
+		resticProxy.SetCurrentLanguage(lang)
+		
 		option, _ := resticProxy.GetGlobalOptions(*rep2)
 		_, err = resticProxy.OpenRepository(ctx, option)
 		if err != nil {

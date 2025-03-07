@@ -47,6 +47,7 @@ var enTranslations = map[string]string{
 	"error.dockerUpgradeNotSupported": "Running in docker environment, please update the container image version manually",
 	"error.versionRequired": "Version number cannot be empty",
 	"error.commandTimeout": "Command execution timed out",
+	"error.repositoryLocked": "Repository is currently locked. Please wait for other operations to complete. If you are sure there are no other tasks, you can manually clear the lock. Lock information:",
 	
 	// 登录相关
 	"login.title": "Login",
@@ -285,6 +286,7 @@ var zhTranslations = map[string]string{
 	"error.dockerUpgradeNotSupported": "当前运行在docker环境，请自行更新容器镜像版本",
 	"error.versionRequired": "版本号不能为空",
 	"error.commandTimeout": "命令执行超时",
+	"error.repositoryLocked": "仓库当前已被锁定，请等待其他操作完成，若确定无其他任务，可手动执行清除锁，锁信息：",
 	
 	// 登录相关
 	"login.title": "登录",

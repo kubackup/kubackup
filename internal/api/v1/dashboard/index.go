@@ -23,8 +23,20 @@ func init() {
 	logServer = logser.GetService()
 }
 
+// 设置当前语言
+func setCurrentLanguage(ctx *context.Context) {
+	lang := ctx.Values().GetString("language")
+	if lang == "" {
+		lang = ctx.GetHeader("Accept-Language")
+	}
+	resticProxy.SetCurrentLanguage(lang)
+}
+
 func indexHandler() iris.Handler {
 	return func(ctx *context.Context) {
+		// 设置当前语言
+		setCurrentLanguage(ctx)
+
 		var (
 			plant, planc, repot, repoc int
 		)
@@ -104,10 +116,14 @@ func searchLogHandler() iris.Handler {
 
 func doGetAllRepoStatsHandler() iris.Handler {
 	return func(ctx *context.Context) {
+		// 设置当前语言
+		setCurrentLanguage(ctx)
+
 		go resticProxy.GetAllRepoStats()
 		ctx.Values().Set("data", "")
 	}
 }
+
 func Install(parent iris.Party) {
 	dashboardParty := parent.Party("/dashboard")
 	// 首页统计数据

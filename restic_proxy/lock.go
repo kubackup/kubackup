@@ -2,6 +2,7 @@ package resticProxy
 
 import (
 	"context"
+	"github.com/kubackup/kubackup/internal/i18n"
 	"github.com/kubackup/kubackup/internal/model"
 	"github.com/kubackup/kubackup/internal/server"
 	"github.com/pkg/errors"
@@ -18,6 +19,16 @@ var globalLocks struct {
 	cancelRefresh chan struct{}
 	refreshWG     sync.WaitGroup
 	sync.Mutex
+}
+
+// 当前语言，默认为英文
+var currentLanguage = i18n.DefaultLanguage
+
+// SetCurrentLanguage 设置当前语言
+func SetCurrentLanguage(lang string) {
+	if lang == i18n.ZH_CN || lang == i18n.EN_US {
+		currentLanguage = lang
+	}
 }
 
 // lockRepo ->  lockRepo 获取到锁
@@ -43,7 +54,9 @@ func lockRepository(ctx context.Context, repo *repository.Repository, exclusive 
 
 	lock, err := lockFn(ctx, repo)
 	if err != nil {
-		return nil, errors.WithMessage(err, "仓库当前已被锁定，请等待其他操作完成，若确定无其他任务，可手动执行清除锁，锁信息：")
+		// 使用当前语言翻译错误信息
+		errorMsg := i18n.T("error.repositoryLocked", currentLanguage)
+		return nil, errors.WithMessage(err, errorMsg)
 	}
 	debug.Log("create lock %p (exclusive %v)", lock, exclusive)
 

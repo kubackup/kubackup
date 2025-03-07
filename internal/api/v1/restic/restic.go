@@ -8,17 +8,36 @@ import (
 	"github.com/kubackup/kubackup/internal/consts"
 	"github.com/kubackup/kubackup/internal/model"
 	"github.com/kubackup/kubackup/internal/server"
+	repositoryDao "github.com/kubackup/kubackup/internal/service/v1/repository"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
 	"github.com/kubackup/kubackup/pkg/utils"
-	"github.com/kubackup/kubackup/restic_proxy"
+	resticProxy "github.com/kubackup/kubackup/restic_proxy"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 )
 
+var repositoryService repositoryDao.Service
+
+func init() {
+	repositoryService = repositoryDao.GetService()
+}
+
+// 设置当前语言
+func setCurrentLanguage(ctx *context.Context) {
+	lang := ctx.Values().GetString("language")
+	if lang == "" {
+		lang = ctx.GetHeader("Accept-Language")
+	}
+	resticProxy.SetCurrentLanguage(lang)
+}
+
 func lsHandler() iris.Handler {
 	return func(ctx *context.Context) {
+		// 设置当前语言
+		setCurrentLanguage(ctx)
+
 		snapshotid := ctx.Params().Get("snapshotid")
 		repository, err := ctx.Params().GetInt("repository")
 		if err != nil {
@@ -63,6 +82,9 @@ func lsHandler() iris.Handler {
 
 func searchHandler() iris.Handler {
 	return func(ctx *context.Context) {
+		// 设置当前语言
+		setCurrentLanguage(ctx)
+
 		snapshotid := ctx.Params().Get("snapshotid")
 		repository, err := ctx.Params().GetInt("repository")
 		if err != nil {
@@ -90,6 +112,9 @@ func searchHandler() iris.Handler {
 
 func snapshotsHandler() iris.Handler {
 	return func(ctx *context.Context) {
+		// 设置当前语言
+		setCurrentLanguage(ctx)
+
 		snapshotid := ctx.URLParam("snapshotid")
 		groupby := ctx.URLParam("groupby")
 		path := ctx.URLParam("path")
@@ -148,6 +173,9 @@ func snapshotsHandler() iris.Handler {
 
 func parmsHandler() iris.Handler {
 	return func(ctx *context.Context) {
+		// 设置当前语言
+		setCurrentLanguage(ctx)
+
 		repository, err := ctx.Params().GetInt("repository")
 		if err != nil {
 			utils.Errore(ctx, err)
@@ -203,6 +231,9 @@ func parmsMyHandler() iris.Handler {
 
 func loadIndexHandler() iris.Handler {
 	return func(ctx *context.Context) {
+		// 设置当前语言
+		setCurrentLanguage(ctx)
+
 		repository, err := ctx.Params().GetInt("repository")
 		if err != nil {
 			utils.Errore(ctx, err)
@@ -215,11 +246,13 @@ func loadIndexHandler() iris.Handler {
 		}
 		ctx.Values().Set("data", "success")
 	}
-
 }
 
 func checkHandler() iris.Handler {
 	return func(ctx *context.Context) {
+		// 设置当前语言
+		setCurrentLanguage(ctx)
+
 		repository, err := ctx.Params().GetInt("repository")
 		if err != nil {
 			utils.Errore(ctx, err)
@@ -237,6 +270,9 @@ func checkHandler() iris.Handler {
 
 func rebuildIndexHandler() iris.Handler {
 	return func(ctx *context.Context) {
+		// 设置当前语言
+		setCurrentLanguage(ctx)
+
 		repository, err := ctx.Params().GetInt("repository")
 		if err != nil {
 			utils.Errore(ctx, err)
@@ -256,6 +292,9 @@ func rebuildIndexHandler() iris.Handler {
 
 func pruneHandler() iris.Handler {
 	return func(ctx *context.Context) {
+		// 设置当前语言
+		setCurrentLanguage(ctx)
+
 		repository, err := ctx.Params().GetInt("repository")
 		if err != nil {
 			utils.Errore(ctx, err)
@@ -272,8 +311,12 @@ func pruneHandler() iris.Handler {
 		ctx.Values().Set("data", id)
 	}
 }
+
 func migrateHandler() iris.Handler {
 	return func(ctx *context.Context) {
+		// 设置当前语言
+		setCurrentLanguage(ctx)
+
 		repository, err := ctx.Params().GetInt("repository")
 		if err != nil {
 			utils.Errore(ctx, err)
@@ -295,6 +338,9 @@ func migrateHandler() iris.Handler {
 
 func unlockHandler() iris.Handler {
 	return func(ctx *context.Context) {
+		// 设置当前语言
+		setCurrentLanguage(ctx)
+
 		repository, err := ctx.Params().GetInt("repository")
 		if err != nil {
 			utils.Errore(ctx, err)
@@ -312,6 +358,9 @@ func unlockHandler() iris.Handler {
 
 func forgetHandler() iris.Handler {
 	return func(ctx *context.Context) {
+		// 设置当前语言
+		setCurrentLanguage(ctx)
+
 		repository, err := ctx.Params().GetInt("repository")
 		if err != nil {
 			utils.Errore(ctx, err)
