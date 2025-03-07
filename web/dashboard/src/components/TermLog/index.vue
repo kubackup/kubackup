@@ -71,9 +71,9 @@ export default {
       messageList: [],
       levelList: LoglevelList,
       statusList: [
-        { code: 1, name: '获取中', color: 'info' },
-        { code: 2, name: '正常', color: 'success' },
-        { code: 3, name: '异常', color: 'error' }
+        { code: 1, name: this.$t('msg.status.getting'), color: 'info' },
+        { code: 2, name: this.$t('msg.status.normal'), color: 'success' },
+        { code: 3, name: this.$t('msg.status.error'), color: 'error' }
       ]
     }
   },

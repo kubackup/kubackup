@@ -1,19 +1,19 @@
 <template>
   <div class="errPage-container">
     <el-button icon="el-icon-arrow-left" class="pan-back-btn" @click="back">
-      返回
+      {{ $t('msg.back') }}
     </el-button>
     <el-row>
       <el-col :span="12">
         <h1 class="text-jumbo">
           Oops!
         </h1>
-        <h2>你没有权限去该页面</h2>
+        <h2>{{ $t('msg.noPermission') }}</h2>
         <ul class="list-unstyled">
-          <li>或者你可以去:</li>
+          <li>{{ $t('msg.orYouCanGoTo') }}:</li>
           <li class="link-type">
             <router-link to="/dashboard">
-              回首页
+              {{ $t('msg.returnHome') }}
             </router-link>
           </li>
         </ul>

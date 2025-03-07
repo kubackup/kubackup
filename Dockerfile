@@ -1,5 +1,5 @@
 # syntax = docker/dockerfile:experimental
-FROM node:14.18.2 AS buildvue
+FROM node:16.13.1 AS buildvue
 
 WORKDIR /dowell/
 COPY . /dowell/
@@ -25,7 +25,7 @@ RUN --mount=type=cache,target=/root/gopath echo -e 'https://mirrors.ustc.edu.cn/
 RUN --mount=type=cache,target=/root/gopath make build_go
 
 FROM alpine:latest
-LABEL MAINTAINER="kubackup <bjpoya@163.com>"
+LABEL MAINTAINER="kubackup <tanyi@dowell.group>"
 ENV LANG C.UTF-8
 COPY --from=buildbin /dowell/dist/kubackup_server_* /apps/kubackup_server
 COPY --from=buildbin /etc/localtime /etc/localtime

@@ -1,21 +1,21 @@
 <template>
   <el-card style="padding: 20px">
     <el-form>
-      <el-form-item label="账号">
+      <el-form-item :label="$t('msg.login.username')">
         <el-input v-model.trim="tmp.userName"/>
       </el-form-item>
-      <el-form-item label="用户名">
+      <el-form-item :label="$t('msg.title.user')">
         <el-input v-model.trim="tmp.nickName"/>
       </el-form-item>
-      <el-form-item label="电子邮箱">
+      <el-form-item :label="$t('msg.email')">
         <el-input v-model.trim="tmp.email"/>
       </el-form-item>
-      <el-form-item label="手机号码">
+      <el-form-item :label="$t('msg.phone')">
         <el-input v-model.trim="tmp.phone"/>
       </el-form-item>
-      <p>最后登录时间：{{ tmp.lastLogin }}</p>
+      <p>{{ $t('msg.lastLogin') }}：{{ tmp.lastLogin }}</p>
       <el-form-item>
-        <el-button type="primary" @click="submit">更新</el-button>
+        <el-button type="primary" @click="submit">{{ $t('msg.update') }}</el-button>
       </el-form-item>
     </el-form>
   </el-card>
@@ -56,7 +56,7 @@ export default {
       fetchUpdate(tmp).then(() => {
         setUserInfo(this.tmp)
         this.$notify({
-          message: '更新成功！',
+          message: this.$t('msg.updateSuccess'),
           type: 'success'
         })
       })

@@ -18,7 +18,7 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item :label="$t('msg.status')">
+        <el-form-item :label="$t('msg.statusLabel')">
           <el-select v-model="listQuery.status" class="handle-select mr5" clearable :placeholder="$t('msg.pleaseSelect')">
             <el-option
               v-for="(item, index) in [{status: 0, name: $t('msg.all')}].concat(status)"
@@ -34,7 +34,7 @@
       </el-form>
     </div>
     <div class="handle-box">
-      <el-button type="primary" icon="el-icon-plus" class="mr5" @click="handleAdd">{{ $t('msg.create') }}</el-button>
+      <el-button type="primary" icon="el-icon-plus" class="mr5" @click="handleAdd">{{ $t('msg.createAction') }}</el-button>
     </div>
     <el-table v-loading="listLoading" :data="list" border fit highlight-current-row style="width: 100%">
       <el-table-column align="center" :label="$t('msg.id')" width="80">
@@ -56,7 +56,7 @@
         </template>
       </el-table-column>
 
-      <el-table-column class-name="status-col" :label="$t('msg.status')">
+      <el-table-column class-name="status-col" :label="$t('msg.statusLabel')">
         <template slot-scope="{row}">
           <el-tag :type="row.status === 1 ? 'success' : 'warning'">
             {{ row.status === 1 ? $t('msg.run') : $t('msg.stop') }}
@@ -64,7 +64,7 @@
         </template>
       </el-table-column>
       <el-table-column prop="createdAt" align="center" :label="$t('msg.createdAt')" :formatter="dateFormat"/>
-      <el-table-column align="center" :label="$t('msg.title.operation')" width="200">
+      <el-table-column align="center" :label="$t('msg.title.operationAction')" width="200">
         <template slot-scope="{row}">
           <el-button-group>
             <el-button type="success" size="small" @click="backupHandler(row.id)"
@@ -107,7 +107,7 @@
             <el-option v-for="item in repositoryList" :key="item.id" :label="item.name" :value="item.id"/>
           </el-select>
         </el-form-item>
-        <el-form-item :label="$t('msg.status')" prop="status">
+        <el-form-item :label="$t('msg.statusLabel')" prop="status">
           <el-select v-model="temp.status" :placeholder="$t('msg.pleaseSelect')">
             <el-option v-for="item in status" :key="item.status" :label="item.name" :value="item.status"/>
           </el-select>
@@ -265,7 +265,7 @@ export default {
       },
       rules: {
         name: [{required: true, message: this.$t('msg.tips.emptyError'), trigger: 'blur'}],
-        status: [{required: true, message: '请选择类型', trigger: 'change'}],
+        status: [{required: true, message: this.$t('msg.pleaseSelectType'), trigger: 'change'}],
         path: [{required: true, message: this.$t('msg.tips.emptyError'), trigger: 'blur'}],
         execTimeCron: [{required: true, message: this.$t('msg.tips.emptyError'), trigger: 'blur'}],
         repositoryId: [{required: true, message: this.$t('msg.tips.emptyError'), trigger: 'change'}]

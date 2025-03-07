@@ -34,7 +34,7 @@
               <div>
                 <p>{{ $t('msg.cleanPolicy') }}：</p>
                 <div v-if="policy.n > 0">
-                  <p>保留最新 <i class="blue">{{ policy.n + formatType(policy.type).name }} </i> 快照 </p>
+                  <p>{{ $t('msg.tips.keepLatestSnapshots') }} <i class="blue">{{ policy.n + formatType(policy.type).name }} </i> {{ $t('msg.snapshot') }} </p>
                   <el-button
                     class="forget-create"
                     type="text"
@@ -87,22 +87,22 @@
                         type="text"
                         size="mini"
                         @click="deleteSnap(item.short_id)">
-                        删除
+                        {{ $t('msg.operation.delete') }}
                       </el-button>
                     </div>
                   </el-timeline-item>
                 </el-timeline>
               </el-collapse-item>
             </el-collapse>
-            <p v-if="noMore" style="font-size: 20px; text-align: center; color: #bbbbbb">没有更多了</p>
+            <p v-if="noMore" style="font-size: 20px; text-align: center; color: #bbbbbb">{{ $t('msg.tips.noMoreData') }}</p>
             <div v-else style="text-align: center;">
-              <el-button :loading="listLoading" type="info" plain @click="getMoreList">加载更多</el-button>
+              <el-button :loading="listLoading" type="info" plain @click="getMoreList">{{ $t('msg.tips.loadMore') }}</el-button>
             </div>
           </el-card>
         </el-col>
         <el-col :xs="16" :sm="16" :lg="16" class="card-panel-col">
           <el-card class="box-card">
-            <Terminal title="日志" showHeader :init="forgetObj.init"
+            <Terminal :title="$t('msg.logs')" showHeader :init="forgetObj.init"
                       :data="forgetObj.logs"/>
           </el-card>
         </el-col>
@@ -110,26 +110,26 @@
     </div>
     <el-dialog :title="textMap[dialogStatus]" :visible.sync="dialogFormVisible" top="5vh" width="500px">
       <div>
-        <el-input placeholder="请输入内容" type="Number" v-model="temp.n" class="input-with-select" maxlength="2">
-          <template slot="prepend">保留最新：</template>
+        <el-input :placeholder="$t('msg.pleaseInput')" type="Number" v-model="temp.n" class="input-with-select" maxlength="2">
+          <template slot="prepend">{{ $t('msg.keepLatest') }}：</template>
           <template slot="append">
             <el-select v-model="temp.type" :placeholder="$t('msg.pleaseSelect')" disabled>
               <el-option v-for="item in typeList" :key="item.code" :label="item.name" :value="item.code"/>
             </el-select>
           </template>
         </el-input>
-        <p class="red">系统将保留最新 {{ temp.n + formatType(temp.type).name }} 快照，超出部分将删除并清理磁盘空间</p>
+        <p class="red">{{ $t('msg.systemWillKeep') }} {{ temp.n + formatType(temp.type).name }} {{ $t('msg.snapshots') }}，{{ $t('msg.exceedingPartsWillBeDeleted') }}</p>
       </div>
       <div slot="footer" class="dialog-footer">
         <el-button @click="dialogFormVisible = false">
-          取消
+          {{ $t('msg.cancel') }}
         </el-button>
         <el-button
           type="primary"
           :loading="buttonLoading"
           @click=" dialogStatus === 'create' ? createPolicyData() : updatePolicyData()"
         >
-          确定
+          {{ $t('msg.confirm') }}
         </el-button>
       </div>
     </el-dialog>
@@ -165,8 +165,8 @@ export default {
         logs: []
       },
       textMap: {
-        update: '修改清理策略',
-        create: '创建清理策略'
+        update: this.$t('msg.updateCleanupPolicy'),
+        create: this.$t('msg.createCleanupPolicy')
       },
       dialogStatus: '',
       dialogFormVisible: false,
@@ -230,7 +230,7 @@ export default {
       return this.typeList.find(item => item.code === code)
     },
     deleteSnap(snapid) {
-      this.$confirm('确定将"' + snapid + '"删除吗？', '删除快照', {
+      this.$confirm(this.$t('msg.confirmDeleteSnapshot') + '"' + snapid + '"？', this.$t('msg.deleteSnapshot'), {
         type: 'warning'
       }).then(() => {
         this.forgetObj.logs = []
@@ -242,7 +242,7 @@ export default {
       })
     },
     doPolicy() {
-      this.$confirm('确定执行清理策略吗？', '执行清理策略', {
+      this.$confirm(this.$t('msg.confirmExecuteCleanupPolicy'), this.$t('msg.executeCleanupPolicy'), {
         type: 'warning'
       }).then(() => {
         this.forgetObj.logs = []

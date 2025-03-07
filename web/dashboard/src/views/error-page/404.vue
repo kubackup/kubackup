@@ -10,7 +10,7 @@
       <div class="bullshit">
         <div class="bullshit__oops">OOPS!</div>
         <div class="bullshit__headline">{{ message }}</div>
-        <a href="/dashboard" class="bullshit__return-home">回到首页</a>
+        <a href="/dashboard" class="bullshit__return-home">{{ $t('msg.tips.returnHome') }}</a>
       </div>
     </div>
   </div>
@@ -22,7 +22,7 @@ export default {
   name: 'Page404',
   computed: {
     message() {
-      return '页面找不到了'
+      return this.$t('msg.tips.pageNotFound')
     }
   }
 }

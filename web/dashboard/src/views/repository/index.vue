@@ -50,7 +50,7 @@
         </template>
       </el-table-column>
 
-      <el-table-column class-name="status-col" :label="$t('msg.status')" width="110">
+      <el-table-column class-name="status-col" :label="$t('msg.statusLabel')" width="110">
         <template slot-scope="{row}">
           <el-tooltip class="item" v-if="row.errmsg" effect="dark" :content="row.errmsg" placement="bottom">
             <el-tag :type="formatStatus(row.status).color">
@@ -63,18 +63,18 @@
         </template>
       </el-table-column>
 
-      <el-table-column align="center" :label="$t('msg.title.operation')">
+      <el-table-column align="center" :label="$t('msg.title.operationAction')">
         <template slot-scope="{row}">
           <el-dropdown trigger="click" hide-on-click @command="handleCmd">
             <span class="el-dropdown-link">
-              {{ $t('msg.title.operation') }}<i class="el-icon-arrow-down el-icon--right"></i>
+              {{ $t('msg.title.operationAction') }}<i class="el-icon-arrow-down el-icon--right"></i>
             </span>
             <el-dropdown-menu slot="dropdown">
               <el-dropdown-item icon="el-icon-video-camera" :command="{cmd:'restore',data:row.id}">
                 {{ $t('msg.operation.restore') }}
               </el-dropdown-item>
               <el-dropdown-item icon="el-icon-setting" :command="{cmd:'oper',data:row.id}">
-                {{ $t('msg.operation.operation') }}
+                {{ $t('msg.operation.operationMaintenance') }}
               </el-dropdown-item>
               <el-dropdown-item icon="el-icon-video-camera" :command="{cmd:'snap',data:row.id}">
                 {{ $t('msg.operation.snapshot') }}
@@ -227,7 +227,7 @@ export default {
       },
       rules: {
         name: [{required: true, message: this.$t('msg.tips.emptyError'), trigger: 'blur'}],
-        type: [{required: true, message: '请选择类型', trigger: 'change'}],
+        type: [{required: true, message: this.$t('msg.pleaseSelectType'), trigger: 'change'}],
         endPoint: [{required: true, message: this.$t('msg.tips.emptyError'), trigger: 'blur'}],
         region: [{required: false, message: this.$t('msg.tips.emptyError'), trigger: 'blur'}],
         bucket: [{required: true, message: this.$t('msg.tips.emptyError'), trigger: 'blur'}],

@@ -15,7 +15,7 @@
         <el-form-item :label="$t('msg.name')">
           <el-input v-model="listQuery.name" placeholder="name" style="width: 150px;" class="filter-item" clearable/>
         </el-form-item>
-        <el-form-item :label="$t('msg.status')">
+        <el-form-item :label="$t('msg.statusLabel')">
           <el-select v-model="listQuery.status" class="handle-select mr5" clearable :placeholder="$t('msg.pleaseSelect')">
             <el-option
               v-for="(item, index) in [{status: -1, name: $t('msg.all')}].concat(statusList)"
@@ -69,7 +69,7 @@
         </template>
       </el-table-column>
 
-      <el-table-column prop="status" align="center" :label="$t('msg.status')">
+      <el-table-column prop="status" align="center" :label="$t('msg.statusLabel')">
         <template slot-scope="{row}">
           <el-button :type="formatStatus(row.status).color" @click="handleInfo(row)">
             {{ formatStatus(row.status).name }}

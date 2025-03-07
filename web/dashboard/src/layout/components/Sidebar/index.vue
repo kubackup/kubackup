@@ -89,10 +89,10 @@ export default {
       })
     },
     handleDialog() {
-      this.$confirm('<a style="color: #3b91b6" href="https://kubackup.cn/changelog/" target="_blank">' + this.latestVersion + '更新日志</a>', '发现新版本', {
+      this.$confirm('<a style="color: #3b91b6" href="https://kubackup.cn/changelog/" target="_blank">' + this.latestVersion + '更新日志</a>', this.$t('msg.tips.newVersionFound'), {
         dangerouslyUseHTMLString: true,
-        confirmButtonText: '立即更新',
-        cancelButtonText: '取消'
+        confirmButtonText: this.$t('msg.tips.updateNow'),
+        cancelButtonText: this.$t('msg.cancel')
       }).then(() => {
         fetchUpgradeVersion(this.latestVersion).then(() => {
           this.getVersion()

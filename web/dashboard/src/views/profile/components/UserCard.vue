@@ -1,13 +1,13 @@
 <template>
   <el-card>
     <div slot="header" class="clearfix">
-      <span>个人中心</span>
+      <span>{{ $t('msg.title.profile') }}</span>
     </div>
 
     <div class="user-profile">
       <div class="box-center">
         <pan-thumb :height="'100px'" :width="'100px'" :hoverable="false">
-          <div>你好</div>
+          <div>{{ $t('msg.hello') }}</div>
           {{ user.nickName }}
         </pan-thumb>
       </div>
@@ -15,48 +15,48 @@
         <div class="user-name text-center">{{ user.userName }}</div>
       </div>
       <div class="box-center">
-        <el-button type="primary" @click="repwdHandler">修改密码</el-button>
+        <el-button type="primary" @click="repwdHandler">{{ $t('msg.changePassword') }}</el-button>
       </div>
       <div class="box-center">
         <el-switch
           v-model="this.user.mfa"
-          active-text="二次认证" @change="mfaChangeHandler">
+          :active-text="$t('msg.twoFactorAuth')" @change="mfaChangeHandler">
         </el-switch>
       </div>
       <div class="box-center" v-if="mfa">
-        <p>请使用<el-link type="success" target="_blank" href="https://kubackup.cn/user_manual/user/#_2">otp应用</el-link>扫码下面二维码获取6为验证码
+        <p>{{ $t('msg.scanQrCodeTip') }}<el-link type="success" target="_blank" href="https://kubackup.cn/user_manual/user/#_2">otp{{ $t('msg.application') }}</el-link>{{ $t('msg.getVerificationCode') }}
         </p>
         <img @click="getQrcode" v-if="mfaQrcode" :src="mfaQrcode" class="qrcode" alt="qrcode">
-        <p class="secret">密钥：{{ otpInfo.secret }}</p>
-        <el-input placeholder="请输入验证码" v-model="otpInfo.code" class="input-with-select mfacode">
-          <el-button slot="append" @click="bindOtp">绑定</el-button>
+        <p class="secret">{{ $t('msg.secretKey') }}：{{ otpInfo.secret }}</p>
+        <el-input :placeholder="$t('msg.pleaseInput') + $t('msg.verificationCode')" v-model="otpInfo.code" class="input-with-select mfacode">
+          <el-button slot="append" @click="bindOtp">{{ $t('msg.bind') }}</el-button>
         </el-input>
       </div>
     </div>
     <el-dialog
-      title="修改密码"
+      :title="$t('msg.changePassword')"
       :visible.sync="dialogFormVisible"
     >
       <el-form ref="dataForm" :rules="rules" :model="temp" label-position="left" label-width="120px">
-        <el-form-item label="旧密码" prop="oldPassword">
+        <el-form-item :label="$t('msg.oldPassword')" prop="oldPassword">
           <el-input v-model="temp.oldPassword" type="password" clearable/>
         </el-form-item>
-        <el-form-item label="新密码" prop="password">
+        <el-form-item :label="$t('msg.newPassword')" prop="password">
           <el-input v-model="temp.password" type="password" clearable/>
         </el-form-item>
-        <el-form-item label="确认密码" prop="confirmPassword">
+        <el-form-item :label="$t('msg.confirmPassword')" prop="confirmPassword">
           <el-input v-model="temp.confirmPassword" type="password" clearable/>
         </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
         <el-button @click="dialogFormVisible = false">
-          取消
+          {{ $t('msg.cancel') }}
         </el-button>
         <el-button
           type="primary"
           @click="repwd"
         >
-          确定
+          {{ $t('msg.confirm') }}
         </el-button>
       </div>
     </el-dialog>
@@ -89,9 +89,9 @@ export default {
   data() {
     const validatePassword = (rule, value, callback) => {
       if (value === '') {
-        callback(new Error('该项为必填项'))
+        callback(new Error(this.$t('msg.tips.emptyError')))
       } else if (value !== this.temp.password) {
-        callback(new Error('两次密码输入不一致'))
+        callback(new Error(this.$t('msg.tips.pwdSecError')))
       } else {
         callback()
       }
@@ -111,9 +111,9 @@ export default {
         confirmPassword: '',
       },
       rules: {
-        oldPassword: [{required: true, message: '该项为必填项', trigger: 'blur'}],
+        oldPassword: [{required: true, message: this.$t('msg.tips.emptyError'), trigger: 'blur'}],
         confirmPassword: [{required: true, validator: validatePassword, trigger: 'blur'}],
-        password: [{required: true, message: '该项为必填项', trigger: 'blur'}],
+        password: [{required: true, message: this.$t('msg.tips.emptyError'), trigger: 'blur'}],
       }
     }
   },
@@ -134,7 +134,7 @@ export default {
         if (valid) {
           fetchRePwd(this.temp).then(res => {
             this.$notify.success({
-              title: '提示',
+              title: this.$t('msg.title.notice'),
               message: res.data
             })
           }).finally(() => {
@@ -148,7 +148,7 @@ export default {
         this.mfa = true
         this.getQrcode()
       } else {
-        this.$confirm('确认关闭二次认证吗？', '关闭认证', {
+        this.$confirm(this.$t('msg.confirmCloseTwoFactorAuth'), this.$t('msg.closeAuth'), {
           type: 'warning'
         }).then(() => {
           this.otpInfo = {
@@ -161,7 +161,7 @@ export default {
             setUserInfo(this.user)
             this.mfa = false
             this.$notify.success({
-              title: '提示',
+              title: this.$t('msg.title.notice'),
               message: res.data
             })
           })
@@ -179,13 +179,13 @@ export default {
     bindOtp() {
       if (this.otpInfo.code === '') {
         this.$notify.error({
-          title: '错误',
-          message: '验证码不能为空'
+          title: this.$t('msg.err'),
+          message: this.$t('msg.verificationCodeCannotBeEmpty')
         })
       }
       fetchBindOtp(this.otpInfo).then(res => {
         this.$notify.success({
-          title: '提示',
+          title: this.$t('msg.title.notice'),
           message: res.data
         })
         this.user.mfa = true
