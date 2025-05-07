@@ -8,7 +8,7 @@
         <el-form-item :label="$t('msg.path')">
           <el-input v-model="listQuery.path" :placeholder="$t('msg.path')" style="width: 150px;" class="filter-item" clearable/>
         </el-form-item>
-        <el-form-item :label="$t('msg.repository')">
+        <el-form-item :label="$t('msg.title.repository')">
           <el-select v-model="listQuery.repositoryId" class="handle-select mr5" clearable :placeholder="$t('msg.pleaseSelect')">
             <el-option
               v-for="(item, index) in [{id: 0, name: $t('msg.all')}].concat(repositoryList)"

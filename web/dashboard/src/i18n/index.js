@@ -1,5 +1,6 @@
 import Vue from 'vue'
 import VueI18n from 'vue-i18n'
+import locale from 'element-ui/lib/locale'
 
 Vue.use(VueI18n) // 全局挂载
 // element-ui自带多语言配置
@@ -19,3 +20,6 @@ export const i18n = new VueI18n({
     } // 英文语言包
   }
 })
+
+// 设置 Element UI 的 locale
+locale.i18n((key, value) => i18n.t(key, value))
