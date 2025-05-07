@@ -1,4 +1,3 @@
-dist
 pkg/restic_source
 web/dashboard/dist
 web/dashboard/node_modules

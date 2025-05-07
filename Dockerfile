@@ -1,36 +1,27 @@
 # syntax = docker/dockerfile:experimental
-FROM node:14.18.2 AS buildvue
+FROM --platform=$TARGETPLATFORM alpine:latest
+LABEL maintainer="kubackup <tanyi@dowell.group>"
+LABEL description="Kubackup - Kubernetes Backup Solution"
 
-WORKDIR /dowell/
-COPY . /dowell/
-RUN --mount=type=cache,target=/dowell/web/dashboard/node_modules cd /dowell/web/dashboard &&\
-    npm config set registry https://registry.npmmirror.com && npm install
-RUN --mount=type=cache,target=/dowell/web/dashboard/node_modules cd /dowell/web/dashboard &&\
-    npm run build:prod
+# 设置环境变量
+ENV LANG=C.UTF-8 \
+    TZ=Asia/Shanghai
 
-FROM golang:1.22.5-alpine3.20 AS buildbin
-ENV GO111MODULE=on
-ENV GOPROXY="https://goproxy.cn,direct"
-ENV CGO_ENABLED=0
-ENV GOPATH=/root/gopath
+# 复制预编译的二进制文件
+ARG TARGETOS
+ARG TARGETARCH
+ARG VERSION
 
-WORKDIR /dowell/
-COPY --from=buildvue /dowell /dowell
-RUN --mount=type=cache,target=/root/gopath echo -e 'https://mirrors.ustc.edu.cn/alpine/v3.20/main/\nhttps://mirrors.ustc.edu.cn/alpine/v3.20/community/' > /etc/apk/repositories &&\
-    apk update &&\
-    apk upgrade &&\
-    apk add --no-cache git make libffi-dev openssl-dev libtool tzdata curl &&\
-    cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &&  \
-    sh prepare.sh
-RUN --mount=type=cache,target=/root/gopath make build_go
+# 根据目标平台复制对应的二进制文件
+COPY dist/kubackup_server_${VERSION}_${TARGETOS}_${TARGETARCH} /apps/kubackup_server
 
-FROM alpine:latest
-LABEL MAINTAINER="kubackup <tanyi@dowell.group>"
-ENV LANG C.UTF-8
-COPY --from=buildbin /dowell/dist/kubackup_server_* /apps/kubackup_server
-COPY --from=buildbin /etc/localtime /etc/localtime
-
+# 暴露端口
 EXPOSE 8012
 
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8012/api/ping || exit 1
+
+# 启动命令
 ENTRYPOINT ["/apps/kubackup_server"]
 

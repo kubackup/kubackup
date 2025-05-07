@@ -52,5 +52,5 @@ build_osx_arm64:
 
 # 构建 Docker 镜像
 build_image:
-	docker buildx build -t kubackup/kubackup:${VERSION} -t kubackup/kubackup:latest --platform=linux/arm64,linux/amd64 . --push
+	docker buildx build -t kubackup/kubackup:${VERSION} -t kubackup/kubackup:latest --build-arg VERSION=${VERSION} --platform=linux/arm64,linux/amd64 . --push
 
