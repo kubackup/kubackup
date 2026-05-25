@@ -3,30 +3,71 @@ package resticProxy
 import (
 	"context"
 	"fmt"
-	operationModel "github.com/kubackup/kubackup/internal/entity/v1/operation"
-	repoModel "github.com/kubackup/kubackup/internal/entity/v1/repository"
-	"github.com/kubackup/kubackup/internal/server"
-	"github.com/kubackup/kubackup/internal/service/v1/common"
-	"github.com/kubackup/kubackup/internal/store/log"
-	"github.com/kubackup/kubackup/internal/store/ws_task_info"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/errors"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/index"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/pack"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/repository"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/ui"
-	"github.com/kubackup/kubackup/pkg/utils"
-	"gopkg.in/tomb.v2"
 	"math"
 	"runtime"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
+
+	operationModel "github.com/kubackup/kubackup/internal/entity/v1/operation"
+	repoModel "github.com/kubackup/kubackup/internal/entity/v1/repository"
+	"github.com/kubackup/kubackup/internal/server"
+	"github.com/kubackup/kubackup/internal/service/v1/common"
+	"github.com/kubackup/kubackup/internal/store/log"
+	wsTaskInfo "github.com/kubackup/kubackup/internal/store/ws_task_info"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/errors"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/repository"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/repository/pack"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/ui"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/ui/progress"
+	"github.com/kubackup/kubackup/pkg/utils"
+	"gopkg.in/tomb.v2"
 )
 
 var errorIndexIncomplete = errors.Fatal("index is not complete")
 var errorPacksMissing = errors.Fatal("packs from index missing in repo")
 var errorSizeNotMatching = errors.Fatal("pack size does not match calculated size from index")
+
+// CountedBlobSet is a set of blobs with a counter for each blob.
+// This type replaces restic.CountedBlobSet which was removed in restic 0.18.1.
+type CountedBlobSet map[restic.BlobHandle]uint8
+
+// NewCountedBlobSet creates a new CountedBlobSet.
+func NewCountedBlobSet() CountedBlobSet {
+	return make(CountedBlobSet)
+}
+
+// Has returns true iff the blob is contained in the set.
+func (s CountedBlobSet) Has(bh restic.BlobHandle) bool {
+	_, ok := s[bh]
+	return ok
+}
+
+// Insert adds a blob to the set.
+func (s CountedBlobSet) Insert(bh restic.BlobHandle) {
+	s[bh] = 0
+}
+
+// Delete removes a blob from the set.
+func (s CountedBlobSet) Delete(bh restic.BlobHandle) {
+	delete(s, bh)
+}
+
+// Len returns the number of blobs in the set.
+func (s CountedBlobSet) Len() int {
+	return len(s)
+}
+
+// Copy returns a copy of the set.
+func (s CountedBlobSet) Copy() CountedBlobSet {
+	newSet := NewCountedBlobSet()
+	for k, v := range s {
+		newSet[k] = v
+	}
+	return newSet
+}
 
 // PruneOptions collects all options for the cleanup command.
 type PruneOptions struct {
@@ -77,11 +118,11 @@ type pruneStats struct {
 }
 
 type prunePlan struct {
-	removePacksFirst restic.IDSet          // packs to remove first (unreferenced packs)
-	repackPacks      restic.IDSet          // packs to repack
-	keepBlobs        restic.CountedBlobSet // blobs to keep during repacking
-	removePacks      restic.IDSet          // packs to remove
-	ignorePacks      restic.IDSet          // packs to ignore when rebuilding the index
+	removePacksFirst restic.IDSet   // packs to remove first (unreferenced packs)
+	repackPacks      restic.IDSet   // packs to repack
+	keepBlobs        CountedBlobSet // blobs to keep during repacking
+	removePacks      restic.IDSet   // packs to remove
+	ignorePacks      restic.IDSet   // packs to ignore when rebuilding the index
 }
 
 func verifyPruneOptions(opts *PruneOptions) error {
@@ -153,7 +194,7 @@ func RunPrune(opts PruneOptions, repoid int) (int, error) {
 	}
 	repo := repoHandler.repo
 
-	if repo.Backend().Connections() < 2 {
+	if repo.Connections() < 2 {
 		return 0, errors.Fatal("prune requires a backend connection limit of at least two")
 	}
 
@@ -171,13 +212,13 @@ func RunPrune(opts PruneOptions, repoid int) (int, error) {
 	clean.AddCleanCtx(func() {
 		cancel()
 	})
-	lock, err := lockRepoExclusive(ctx, repo)
+	unlocker, _, err := lockRepoExclusive(ctx, repo)
 	if err != nil {
 		clean.Cleanup()
 		return 0, err
 	}
 	clean.AddCleanCtx(func() {
-		unlockRepo(lock)
+		unlockRepo(unlocker)
 	})
 	status := repoModel.StatusNone
 	oper := operationModel.Operation{
@@ -239,9 +280,6 @@ func RunPrune(opts PruneOptions, repoid int) (int, error) {
 }
 
 func runPruneWithRepo(opts PruneOptions, ctx context.Context, repo *repository.Repository, ignoreSnapshots restic.IDSet, spr *wsTaskInfo.Sprintf) error {
-	// we do not need index updates while pruning!
-	repo.DisableAutoIndexUpdate()
-
 	if repo.Cache == nil {
 		spr.Append(wsTaskInfo.Warning, "running prune without a cache, this may be very slow!\n")
 	}
@@ -290,7 +328,9 @@ func prune(opts PruneOptions, ctx context.Context, repo restic.Repository, plan 
 		spr.Append(wsTaskInfo.Info, fmt.Sprintf("repacking packs\n"))
 		max := uint64(len(plan.repackPacks))
 		pro := newProgressMax(true, max, "packs repacked", spr)
-		_, err := repository.Repack(ctx, repo, repo, plan.repackPacks, plan.keepBlobs, pro)
+		_, err := repository.Repack(ctx, repo, repo, plan.repackPacks, plan.keepBlobs, pro, func(msg string, args ...interface{}) {
+			spr.Append(wsTaskInfo.Info, fmt.Sprintf(msg+"\n", args...))
+		})
 		pro.Done()
 		if err != nil {
 			return errors.Fatalf("%s", err)
@@ -317,8 +357,15 @@ func prune(opts PruneOptions, ctx context.Context, repo restic.Repository, plan 
 	}
 	if opts.unsafeRecovery {
 		spr.Append(wsTaskInfo.Info, fmt.Sprintf("deleting index files\n"))
-		indexFiles := repo.Index().(*index.MasterIndex).IDs()
-		err := DeleteFilesChecked(spr, ctx, repo, indexFiles, restic.IndexFile)
+		var indexFiles restic.IDSet
+		err := repo.List(ctx, restic.IndexFile, func(id restic.ID, _ int64) error {
+			indexFiles.Insert(id)
+			return nil
+		})
+		if err != nil {
+			return errors.Fatalf("%s", err)
+		}
+		err = DeleteFilesChecked(spr, ctx, repo, indexFiles, restic.IndexFile)
 		if err != nil {
 			return errors.Fatalf("%s", err)
 		}
@@ -346,10 +393,54 @@ func prune(opts PruneOptions, ctx context.Context, repo restic.Repository, plan 
 
 func writeIndexFiles(ctx context.Context, repo restic.Repository, removePacks restic.IDSet, extraObsolete restic.IDs, spr *wsTaskInfo.Sprintf) (restic.IDSet, error) {
 	spr.Append(wsTaskInfo.Info, fmt.Sprintf("rebuilding index\n"))
-	bar := newProgressMax(true, 0, "packs processed", spr)
-	obsoleteIndexes, err := repo.Index().Save(ctx, repo, removePacks, extraObsolete, bar)
-	bar.Done()
-	return obsoleteIndexes, err
+
+	repoRepo := repo.(*repository.Repository)
+
+	// Use RepairIndex to rebuild the index
+	repairOpts := repository.RepairIndexOptions{
+		ReadAllPacks: true,
+	}
+
+	err := repository.RepairIndex(ctx, repoRepo, repairOpts, &pruneProgressPrinter{spr: spr})
+	if err != nil {
+		return nil, err
+	}
+
+	return nil, nil
+}
+
+type pruneProgressPrinter struct {
+	spr *wsTaskInfo.Sprintf
+}
+
+func (p *pruneProgressPrinter) P(format string, args ...interface{}) {
+	p.spr.Append(wsTaskInfo.Info, fmt.Sprintf(format, args...))
+}
+
+func (p *pruneProgressPrinter) E(format string, args ...interface{}) {
+	p.spr.Append(wsTaskInfo.Error, fmt.Sprintf(format, args...))
+}
+
+func (p *pruneProgressPrinter) S(format string, args ...interface{}) {
+	p.spr.Append(wsTaskInfo.Info, fmt.Sprintf(format, args...))
+}
+
+func (p *pruneProgressPrinter) V(format string, args ...interface{}) {
+	p.spr.Append(wsTaskInfo.Info, fmt.Sprintf(format, args...))
+}
+
+func (p *pruneProgressPrinter) VV(format string, args ...interface{}) {
+	p.spr.Append(wsTaskInfo.Info, fmt.Sprintf(format, args...))
+}
+
+func (p *pruneProgressPrinter) NewCounter(name string) *progress.Counter {
+	return progress.NewCounter(time.Second, 0, func(v, max uint64, runtime time.Duration, final bool) {
+		if max > 0 {
+			p.spr.Append(wsTaskInfo.Info, fmt.Sprintf("%s: %d/%d\r", name, v, max))
+		} else {
+			p.spr.Append(wsTaskInfo.Info, fmt.Sprintf("%s: %d\r", name, v))
+		}
+	})
 }
 
 func rebuildIndexFiles(ctx context.Context, repo restic.Repository, removePacks restic.IDSet, extraObsolete restic.IDs, spr *wsTaskInfo.Sprintf) error {
@@ -375,7 +466,7 @@ func planPrune(ctx context.Context, opts PruneOptions, repo restic.Repository, i
 	}
 
 	spr.Append(wsTaskInfo.Info, fmt.Sprint("searching used packs...\n"))
-	keepBlobs, indexPack, err := packInfoFromIndex(ctx, repo.Index(), usedBlobs, &stats, spr)
+	keepBlobs, indexPack, err := packInfoFromIndex(ctx, repo, usedBlobs, &stats, spr)
 	if err != nil {
 		return prunePlan{}, stats, err
 	}
@@ -390,12 +481,15 @@ func planPrune(ctx context.Context, opts PruneOptions, repo restic.Repository, i
 		blobCount := keepBlobs.Len()
 		// when repacking, we do not want to keep blobs which are
 		// already contained in kept packs, so delete them from keepBlobs
-		repo.Index().Each(ctx, func(blob restic.PackedBlob) {
+		err := repo.ListBlobs(ctx, func(blob restic.PackedBlob) {
 			if plan.removePacks.Has(blob.PackID) || plan.repackPacks.Has(blob.PackID) {
 				return
 			}
 			keepBlobs.Delete(blob.BlobHandle)
 		})
+		if err != nil {
+			return prunePlan{}, stats, err
+		}
 
 		if keepBlobs.Len() < blobCount/2 {
 			// replace with copy to shrink map to necessary size if there's a chance to benefit
@@ -452,11 +546,11 @@ func printPruneStats(stats pruneStats, spr *wsTaskInfo.Sprintf) error {
 	return nil
 }
 
-func packInfoFromIndex(ctx context.Context, idx restic.MasterIndex, usedBlobs restic.CountedBlobSet, stats *pruneStats, spr *wsTaskInfo.Sprintf) (restic.CountedBlobSet, map[restic.ID]packInfo, error) {
+func packInfoFromIndex(ctx context.Context, repo restic.Repository, usedBlobs CountedBlobSet, stats *pruneStats, spr *wsTaskInfo.Sprintf) (CountedBlobSet, map[restic.ID]packInfo, error) {
 	// iterate over all blobs in index to find out which blobs are duplicates
 	// The counter in usedBlobs describes how many instances of the blob exist in the repository index
 	// Thus 0 == blob is missing, 1 == blob exists once, >= 2 == duplicates exist
-	idx.Each(ctx, func(blob restic.PackedBlob) {
+	err := repo.ListBlobs(ctx, func(blob restic.PackedBlob) {
 		bh := blob.BlobHandle
 		count, ok := usedBlobs[bh]
 		if ok {
@@ -470,6 +564,9 @@ func packInfoFromIndex(ctx context.Context, idx restic.MasterIndex, usedBlobs re
 			usedBlobs[bh] = count
 		}
 	})
+	if err != nil {
+		return nil, nil, err
+	}
 
 	// Check if all used blobs have been found in index
 	missingBlobs := restic.NewBlobSet()
@@ -492,14 +589,18 @@ func packInfoFromIndex(ctx context.Context, idx restic.MasterIndex, usedBlobs re
 	indexPack := make(map[restic.ID]packInfo)
 
 	// save computed pack header size
-	for pid, hdrSize := range pack.Size(ctx, idx, true) {
+	packSizes, err := pack.Size(ctx, repo, true)
+	if err != nil {
+		return nil, nil, err
+	}
+	for pid, hdrSize := range packSizes {
 		// initialize tpe with NumBlobTypes to indicate it's not set
 		indexPack[pid] = packInfo{tpe: restic.NumBlobTypes, usedSize: uint64(hdrSize)}
 	}
 
 	hasDuplicates := false
 	// iterate over all blobs in index to generate packInfo
-	idx.Each(ctx, func(blob restic.PackedBlob) {
+	err = repo.ListBlobs(ctx, func(blob restic.PackedBlob) {
 		ip := indexPack[blob.PackID]
 
 		// Set blob type if not yet set
@@ -551,7 +652,7 @@ func packInfoFromIndex(ctx context.Context, idx restic.MasterIndex, usedBlobs re
 	// - if there are no used blobs in a pack, possibly mark duplicates as "unused"
 	if hasDuplicates {
 		// iterate again over all blobs in index (this is pretty cheap, all in-mem)
-		idx.Each(ctx, func(blob restic.PackedBlob) {
+		err = repo.ListBlobs(ctx, func(blob restic.PackedBlob) {
 			bh := blob.BlobHandle
 			count, ok := usedBlobs[bh]
 			// skip non-duplicate, aka. normal blobs
@@ -611,10 +712,10 @@ func decidePackAction(ctx context.Context, opts PruneOptions, repo restic.Reposi
 	var repackSmallCandidates []packInfoWithID
 	repoVersion := repo.Config().Version
 	// only repack very small files by default
-	targetPackSize := repo.PackSize() / 25
+	targetPackSize := repository.DefaultPackSize / 25
 	if opts.RepackSmall {
 		// consider files with at least 80% of the target size as large enough
-		targetPackSize = repo.PackSize() / 5 * 4
+		targetPackSize = repository.DefaultPackSize / 5 * 4
 	}
 
 	// loop over all packs and decide what to do
@@ -800,11 +901,11 @@ func decidePackAction(ctx context.Context, opts PruneOptions, repo restic.Reposi
 	}, nil
 }
 
-func getUsedBlobs(ctx context.Context, repo restic.Repository, ignoreSnapshots restic.IDSet, spr *wsTaskInfo.Sprintf) (usedBlobs restic.CountedBlobSet, err error) {
+func getUsedBlobs(ctx context.Context, repo restic.Repository, ignoreSnapshots restic.IDSet, spr *wsTaskInfo.Sprintf) (usedBlobs CountedBlobSet, err error) {
 
 	var snapshotTrees restic.IDs
 	spr.Append(wsTaskInfo.Info, fmt.Sprintf("loading all snapshots...\n"))
-	err = restic.ForAllSnapshots(ctx, repo.Backend(), repo, ignoreSnapshots,
+	err = restic.ForAllSnapshots(ctx, repo, repo, ignoreSnapshots,
 		func(id restic.ID, sn *restic.Snapshot, err error) error {
 			server.Logger().Debugf("add snapshot %v (tree %v, error %v)", id, *sn.Tree, err)
 			if err != nil {
@@ -819,18 +920,14 @@ func getUsedBlobs(ctx context.Context, repo restic.Repository, ignoreSnapshots r
 
 	spr.Append(wsTaskInfo.Info, fmt.Sprintf("finding data that is still in use for %d snapshots\n", len(snapshotTrees)))
 
-	usedBlobs = restic.NewCountedBlobSet()
+	usedBlobs = NewCountedBlobSet()
 
 	pro := newProgressMax(true, uint64(len(snapshotTrees)), "snapshots", spr)
 	defer pro.Done()
 
 	err = restic.FindUsedBlobs(ctx, repo, snapshotTrees, usedBlobs, pro)
 	if err != nil {
-		if repo.Backend().IsNotExist(err) {
-			return nil, errors.Fatal("unable to load a tree from the repo: " + err.Error())
-		}
-
-		return nil, err
+		return nil, errors.Fatal("unable to load a tree from the repo: " + err.Error())
 	}
 	return usedBlobs, nil
 }

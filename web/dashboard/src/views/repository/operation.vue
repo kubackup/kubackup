@@ -52,6 +52,7 @@
                 <el-tag :type="formatStatus(pruneObj.status).color">
                   {{ formatStatus(pruneObj.status).name }}
                 </el-tag>
+                <el-button type="text" @click="showPruneSettings">{{ $t('msg.operation.edit') }}</el-button>
                 <el-button type="text" @click="pruneHandler()">{{ $t('msg.operation.execute') }}</el-button>
               </div>
             </el-form-item>
@@ -86,6 +87,20 @@
         </el-col>
       </el-row>
     </div>
+    <el-dialog :title="$t('msg.operation.prune')" :visible.sync="pruneDialogVisible" top="5vh" width="400px">
+      <el-form ref="pruneForm" :model="pruneSettings" label-position="left" label-width="120px">
+        <el-form-item :label="$t('msg.minPackSize')">
+          <el-input v-model.number="pruneSettings.minPackSize" type="number" min="0">
+            <template slot="append">{{ $t('msg.unit.mib') }}</template>
+          </el-input>
+          <p style="color: #999; font-size: 12px; margin-top: 5px">{{ $t('msg.minPackSizeTip') }}</p>
+        </el-form-item>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="pruneDialogVisible = false">{{ $t('msg.cancel') }}</el-button>
+        <el-button type="primary" @click="savePruneSettings">{{ $t('msg.confirm') }}</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -141,7 +156,11 @@ export default {
       },
       sock: null,
       curSockObj: 1,
-      activeName: '1'
+      activeName: '1',
+      pruneDialogVisible: false,
+      pruneSettings: {
+        minPackSize: 0
+      }
     }
   },
   computed: {
@@ -194,10 +213,17 @@ export default {
         this.activeName = '2'
       })
     },
+    showPruneSettings() {
+      this.pruneDialogVisible = true
+    },
+    savePruneSettings() {
+      this.$notify.success(this.$t('msg.success'))
+      this.pruneDialogVisible = false
+    },
     pruneHandler() {
       this.pruneObj.logs = []
       this.pruneObj.init = true
-      fetchPrune(this.listQuery.id).then(res => {
+      fetchPrune(this.listQuery.id, this.pruneSettings.minPackSize).then(res => {
         this.curSockObj = 3
         this.openSockjs(res.data)
       }).finally(() => {
@@ -206,7 +232,7 @@ export default {
     },
     unlockHandler() {
       fetchUnlock(this.listQuery.id).then(res => {
-        this.$notify.success(this.$t('repository.unlockSuccess', {count: res.data}))
+        this.$notify.success(this.$t('msg.repository.unlockSuccess', {count: res.data}))
       })
     },
     getLastOper(type) {
@@ -276,7 +302,7 @@ export default {
             if (data.message) {
               that.$notify({
                 type: 'error',
-                title: that.$t('common.error'),
+                title: that.$t('msg.common.error'),
                 message: data.message
               })
               that.getLastOper(that.curSockObj)
@@ -304,7 +330,7 @@ export default {
     formatStatus(code) {
       let res = this.statusList.find(item => item.code === code)
       if (!res) {
-        res = {code: 1, name: this.$t('common.loading'), color: 'info'}
+        res = {code: 1, name: this.$t('msg.common.loading'), color: 'info'}
       }
       return res
     },

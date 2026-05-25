@@ -3,6 +3,10 @@ package resticProxy
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/kubackup/kubackup/internal/consts"
 	thmodel "github.com/kubackup/kubackup/internal/entity/v1/task"
 	"github.com/kubackup/kubackup/internal/model"
@@ -15,9 +19,6 @@ import (
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restorer"
 	restoreui "github.com/kubackup/kubackup/pkg/restic_source/rinternal/ui/restore"
 	"gopkg.in/tomb.v2"
-	"strconv"
-	"strings"
-	"time"
 )
 
 // RestoreOptions collects all options for the restore command.
@@ -108,7 +109,7 @@ func RunRestore(opts RestoreOptions, repoid int, snapshotid string) error {
 		Hosts: opts.Hosts,
 		Paths: opts.Paths,
 		Tags:  opts.Tags,
-	}).FindLatest(ctx, repo.Backend(), repo, snapshotid)
+	}).FindLatest(ctx, repo, repo, snapshotid)
 	if err != nil {
 		return errors.Fatalf("failed to find snapshot: %v", err)
 	}
@@ -118,13 +119,16 @@ func RunRestore(opts RestoreOptions, repoid int, snapshotid string) error {
 		return err
 	}
 
-	res := restorer.NewRestorer(repo, sn, opts.Sparse, progressReporter)
+	res := restorer.NewRestorer(repo, sn, restorer.Options{
+		Sparse:   opts.Sparse,
+		Progress: progressReporter,
+	})
 
 	res.Error = printer.Error
 
 	excludePatterns := filter.ParsePatterns(opts.Exclude)
 	insensitiveExcludePatterns := filter.ParsePatterns(opts.InsensitiveExclude)
-	selectExcludeFilter := func(item string, dstpath string, node *restic.Node) (selectedForRestore bool, childMayBeSelected bool) {
+	selectExcludeFilter := func(item string, isDir bool) (selectedForRestore bool, childMayBeSelected bool) {
 		matched, err := filter.List(excludePatterns, item)
 		if err != nil {
 			server.Logger().Warnf("error for exclude pattern: %v", err)
@@ -140,14 +144,14 @@ func RunRestore(opts RestoreOptions, repoid int, snapshotid string) error {
 		// therefore childMayMatch does not matter, but we should not go down
 		// unless the dir is selected for restore
 		selectedForRestore = !matched && !matchedInsensitive
-		childMayBeSelected = selectedForRestore && node.Type == "dir"
+		childMayBeSelected = selectedForRestore && isDir
 
 		return selectedForRestore, childMayBeSelected
 	}
 
 	includePatterns := filter.ParsePatterns(opts.Include)
 	insensitiveIncludePatterns := filter.ParsePatterns(opts.InsensitiveInclude)
-	selectIncludeFilter := func(item string, dstpath string, node *restic.Node) (selectedForRestore bool, childMayBeSelected bool) {
+	selectIncludeFilter := func(item string, isDir bool) (selectedForRestore bool, childMayBeSelected bool) {
 		matched, childMayMatch, err := filter.ListWithChild(includePatterns, item)
 		if err != nil {
 			server.Logger().Warnf("error for include pattern: %v", err)
@@ -159,7 +163,7 @@ func RunRestore(opts RestoreOptions, repoid int, snapshotid string) error {
 		}
 
 		selectedForRestore = matched || matchedInsensitive
-		childMayBeSelected = (childMayMatch || childMayMatchInsensitive) && node.Type == "dir"
+		childMayBeSelected = (childMayMatch || childMayMatchInsensitive) && isDir
 
 		return selectedForRestore, childMayBeSelected
 	}
@@ -192,7 +196,8 @@ func RunRestore(opts RestoreOptions, repoid int, snapshotid string) error {
 		if err != nil {
 			server.Logger().Error(err)
 		}
-		err = res.RestoreTo(ctx, opts.Target)
+		var restoredFiles uint64
+		restoredFiles, err = res.RestoreTo(ctx, opts.Target)
 		if err != nil {
 			server.Logger().Error(err)
 			_ = printer.Error("RestoreTo", err)
@@ -200,7 +205,7 @@ func RunRestore(opts RestoreOptions, repoid int, snapshotid string) error {
 		if opts.Verify {
 			server.Logger().Debugf("verifying files in %s\n", opts.Target)
 			t0 := time.Now()
-			count, err := res.VerifyFiles(ctx, opts.Target)
+			count, err := res.VerifyFiles(ctx, opts.Target, restoredFiles, nil)
 			if err != nil {
 				_ = printer.Error("VerifyFiles", err)
 			}

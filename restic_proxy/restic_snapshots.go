@@ -3,10 +3,11 @@ package resticProxy
 import (
 	"context"
 	"encoding/json"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
-	"github.com/wxnacy/wgo/arrays"
+	"slices"
 	"sort"
 	"strings"
+
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
 )
 
 type SnapshotOptions struct {
@@ -54,14 +55,14 @@ func GetParms(repoid int, hosts []string) (*SnapshotParm, error) {
 	res := &SnapshotParm{}
 	tags := make([]string, 0)
 	paths := make(map[string][]string, 0)
-	for sn := range FindFilteredSnapshots(ctx, repo.Backend(), repo, &restic.SnapshotFilter{Hosts: hosts}, []string{}) {
+	for sn := range FindFilteredSnapshots(ctx, repo, repo, &restic.SnapshotFilter{Hosts: hosts}, []string{}) {
 		ps := paths[sn.Hostname]
-		if len(sn.Paths) > 0 && arrays.ContainsString(ps, sn.Paths[0]) < 0 {
+		if len(sn.Paths) > 0 && !slices.Contains(ps, sn.Paths[0]) {
 			ps = append(ps, sn.Paths...)
 		}
 		paths[sn.Hostname] = ps
 		for _, tag := range sn.Tags {
-			if arrays.ContainsString(tags, tag) < 0 {
+			if !slices.Contains(tags, tag) {
 				tags = append(tags, tag)
 			}
 		}
@@ -94,7 +95,7 @@ func RunSnapshots(opts SnapshotOptions, repoid int, snapshotids []string) ([]int
 	defer clean.Cleanup()
 
 	var snapshots restic.Snapshots
-	for sn := range FindFilteredSnapshots(ctx, repo.Backend(), repo, &opts.SnapshotFilter, snapshotids) {
+	for sn := range FindFilteredSnapshots(ctx, repo, repo, &opts.SnapshotFilter, snapshotids) {
 		snapshots = append(snapshots, sn)
 	}
 	snapshotGroups, grouped, err := restic.GroupSnapshots(snapshots, opts.GroupBy)

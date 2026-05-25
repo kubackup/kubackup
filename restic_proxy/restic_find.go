@@ -3,16 +3,16 @@ package resticProxy
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/kubackup/kubackup/internal/server"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/debug"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/errors"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/filter"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/walker"
 	"gopkg.in/tomb.v2"
-	"strings"
-	"time"
 )
 
 func RunFind(targetP string, repoid int, snapshotid string) (*LsRes, error) {
@@ -33,12 +33,7 @@ func RunFind(targetP string, repoid int, snapshotid string) (*LsRes, error) {
 	})
 	defer clean.Cleanup()
 
-	snapshotLister, err := backend.MemorizeList(ctx, repo.Backend(), restic.SnapshotFile)
-	if err != nil {
-		return nil, err
-	}
-
-	sn, subfolder, err := (&restic.SnapshotFilter{}).FindLatest(ctx, snapshotLister, repo, snapshotid)
+	sn, subfolder, err := (&restic.SnapshotFilter{}).FindLatest(ctx, repo, repo, snapshotid)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +106,7 @@ func findInSnapshot(ctx context.Context, repo restic.BlobLoader, tree restic.ID,
 	defer close(ch)
 	var t tomb.Tomb
 	t.Go(func() error {
-		_ = walker.Walk(ctx, repo, tree, restic.NewIDSet(), findres(t.Context(ctx), ch, parttern, start, end))
+		_ = walker.Walk(ctx, repo, tree, walker.WalkVisitor{ProcessNode: findres(t.Context(ctx), ch, parttern, start, end)})
 		t.Kill(nil)
 		return nil
 	})
@@ -133,14 +128,14 @@ func findInSnapshot(ctx context.Context, repo restic.BlobLoader, tree restic.ID,
 }
 
 func findres(ctx context.Context, ch chan interface{}, parttern []string, start time.Time, end time.Time) walker.WalkFunc {
-	return func(parentTreeID restic.ID, nodepath string, node *restic.Node, err error) (bool, error) {
+	return func(parentTreeID restic.ID, nodepath string, node *restic.Node, err error) error {
 		if err != nil {
 			debug.Log("Error loading tree %v: %v", parentTreeID, err)
-			return false, walker.ErrSkipNode
+			return walker.ErrSkipNode
 		}
 
 		if node == nil {
-			return false, nil
+			return nil
 		}
 
 		normalizedNodepath := nodepath
@@ -151,7 +146,7 @@ func findres(ctx context.Context, ch chan interface{}, parttern []string, start 
 		for _, pat := range parttern {
 			found, err := filter.Match(pat, normalizedNodepath)
 			if err != nil {
-				return false, err
+				return err
 			}
 			if found {
 				foundMatch = true
@@ -168,7 +163,7 @@ func findres(ctx context.Context, ch chan interface{}, parttern []string, start 
 			for _, pat := range parttern {
 				mayMatch, err := filter.ChildMatch(pat, normalizedNodepath)
 				if err != nil {
-					return false, err
+					return err
 				}
 				if mayMatch {
 					childMayMatch = true
@@ -185,21 +180,30 @@ func findres(ctx context.Context, ch chan interface{}, parttern []string, start 
 		}
 
 		if !foundMatch {
-			return ignoreIfNoMatch, errIfNoMatch
+			if ignoreIfNoMatch {
+				return errIfNoMatch
+			}
+			return nil
 		}
 
 		if !start.IsZero() && node.ModTime.Before(start) {
-			return ignoreIfNoMatch, errIfNoMatch
+			if ignoreIfNoMatch {
+				return errIfNoMatch
+			}
+			return nil
 		}
 
 		if !end.IsZero() && node.ModTime.After(end) {
-			return ignoreIfNoMatch, errIfNoMatch
+			if ignoreIfNoMatch {
+				return errIfNoMatch
+			}
+			return nil
 		}
 		select {
 		case ch <- getNode(nodepath, node):
 		case <-ctx.Done():
-			return false, ctx.Err()
+			return ctx.Err()
 		}
-		return false, nil
+		return nil
 	}
 }

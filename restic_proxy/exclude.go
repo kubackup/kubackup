@@ -224,7 +224,7 @@ func NewDeviceMap(allowedSourcePaths []string) (DeviceMap, error) {
 			return nil, err
 		}
 
-		id, err := fs.DeviceID(fi)
+		id := fs.ExtendedStat(fi).DeviceID
 		if err != nil {
 			return nil, err
 		}
@@ -280,7 +280,7 @@ func rejectByDevice(samples []string) (RejectFunc, error) {
 	debug.Log("allowed devices: %v\n", deviceMap)
 
 	return func(item string, fi os.FileInfo) bool {
-		id, err := fs.DeviceID(fi)
+		id := fs.ExtendedStat(fi).DeviceID
 		if err != nil {
 			// This should never happen because gatherDevices() would have
 			// errored out earlier. If it still does that's a reason to panic.
@@ -315,7 +315,7 @@ func rejectByDevice(samples []string) (RejectFunc, error) {
 			return true
 		}
 
-		parentDeviceID, err := fs.DeviceID(parentFI)
+		parentDeviceID := fs.ExtendedStat(parentFI).DeviceID
 		if err != nil {
 			debug.Log("item %v: getting device ID of parent directory: %v", item, err)
 			// if in doubt, reject
@@ -347,7 +347,7 @@ func rejectResticCache(repo *repository.Repository) (RejectByNameFunc, error) {
 			return false
 		}, nil
 	}
-	cacheBase := repo.Cache.BaseDir()
+	cacheBase := repo.Cache().BaseDir()
 
 	if cacheBase == "" {
 		return nil, errors.New("cacheBase is empty string")

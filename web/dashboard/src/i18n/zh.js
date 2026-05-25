@@ -158,7 +158,9 @@ export const msg = {
   repositoryId: '存储库ID',
   snapshot: '快照',
   snapshots: '快照数量',
+  repositoryName: '存储库',
   tasks: '任务数量',
+  taskDetail: '任务详情',
   cleanPolicy: '清理策略',
   repos: '存储库数量',
   reposPwd: '存储库密码',
@@ -198,6 +200,8 @@ export const msg = {
   repositoryVersion: '格式版本',
   root: '根',
   total: '合计',
+  time: '时间',
+  value: '值',
   set: '设置',
   email: '邮箱',
   phone: '手机号码',
@@ -245,8 +249,26 @@ export const msg = {
     inProgress: '恢复进行中',
     checkTaskMessage: '请在<a href="#/task">任务</a>页面查看进度',
     defaultPathTip: '默认恢复到"/"，恢复数据即文件原来的路径，若修改，则数据还原路径为当前选择路径加备份路径，例：/root{path}，/root为本次选择路径',
-    verifyTip: '开启数据完整性校验，校验时间较长，请谨慎选择！'
+    verifyTip: '开启数据完整性校验，校验时间较长，请谨慎选择！',
+    filesDeleted: '删除文件数',
+    dirsDeleted: '删除目录数'
   },
+  backup: {
+    filesNew: '新增文件数',
+    filesChanged: '变更文件数',
+    filesUnmodified: '未修改文件数',
+    dirsNew: '新增目录数',
+    dirsChanged: '变更目录数',
+    dirsUnmodified: '未修改目录数',
+    bytesAdded: '新增字节数',
+    bytesChanged: '变更字节数',
+    bytesUnmodified: '未修改字节数',
+    compressionRatio: '压缩率'
+  },
+  syncDelete: '同步删除',
+  syncDeleteTip: '备份时删除目标位置不存在的文件',
+  minPackSize: '小包大小',
+  minPackSizeTip: '设置 prune 命令的小包大小阈值（MiB）',
   packSize: '包大小',
   unit: {
     mib: 'MiB'

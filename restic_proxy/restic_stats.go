@@ -3,20 +3,20 @@ package resticProxy
 import (
 	"context"
 	"fmt"
+	"path/filepath"
+	"sync"
+	"time"
+
 	"github.com/fanjindong/go-cache"
 	"github.com/kubackup/kubackup/internal/consts"
 	"github.com/kubackup/kubackup/internal/model"
 	"github.com/kubackup/kubackup/internal/server"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/crypto"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/walker"
 	"github.com/kubackup/kubackup/pkg/utils"
 	"github.com/minio/sha256-simd"
 	"gopkg.in/tomb.v2"
-	"path/filepath"
-	"sync"
-	"time"
 )
 
 type StatsOptions struct {
@@ -136,10 +136,6 @@ func runStats(opts StatsOptions, repoid int, snapshotIDs []string) (*StatsContai
 		cancel()
 	})
 	defer clean.Cleanup()
-	snapshotLister, err := backend.MemorizeList(ctx, repo.Backend(), restic.SnapshotFile)
-	if err != nil {
-		return nil, err
-	}
 	// create a container for the stats (and other needed state)
 	stats := &StatsContainer{
 		uniqueFiles:    make(map[fileID]struct{}),
@@ -148,7 +144,7 @@ func runStats(opts StatsOptions, repoid int, snapshotIDs []string) (*StatsContai
 		SnapshotsCount: 0,
 	}
 
-	for sn := range FindFilteredSnapshots(ctx, snapshotLister, repo, &opts.SnapshotFilter, snapshotIDs) {
+	for sn := range FindFilteredSnapshots(ctx, repo, repo, &opts.SnapshotFilter, snapshotIDs) {
 		err = statsWalkSnapshot(opts, ctx, sn, repo, stats)
 		if err != nil {
 			return nil, fmt.Errorf("error walking snapshot: %v", err)
@@ -158,7 +154,7 @@ func runStats(opts StatsOptions, repoid int, snapshotIDs []string) (*StatsContai
 	if opts.countMode == countModeRawData {
 		// the blob handles have been collected, but not yet counted
 		for blobHandle := range stats.blobs {
-			pbs := repo.Index().Lookup(blobHandle)
+			pbs := repo.LookupBlob(blobHandle.Type, blobHandle.ID)
 			if len(pbs) == 0 {
 				return nil, fmt.Errorf("blob %v not found", blobHandle)
 			}
@@ -197,7 +193,9 @@ func statsWalkSnapshot(statsOptions StatsOptions, ctx context.Context, snapshot 
 	}
 
 	uniqueInodes := make(map[uint64]struct{})
-	err := walker.Walk(ctx, repo, *snapshot.Tree, restic.NewIDSet(), statsWalkTree(statsOptions, repo, stats, uniqueInodes))
+	err := walker.Walk(ctx, repo, *snapshot.Tree, walker.WalkVisitor{
+		ProcessNode: statsWalkTree(statsOptions, repo, stats, uniqueInodes),
+	})
 	if err != nil {
 		return fmt.Errorf("walking tree %s: %v", *snapshot.Tree, err)
 	}
@@ -206,12 +204,12 @@ func statsWalkSnapshot(statsOptions StatsOptions, ctx context.Context, snapshot 
 }
 
 func statsWalkTree(statsOptions StatsOptions, repo restic.Repository, stats *StatsContainer, uniqueInodes map[uint64]struct{}) walker.WalkFunc {
-	return func(parentTreeID restic.ID, npath string, node *restic.Node, nodeErr error) (bool, error) {
+	return func(parentTreeID restic.ID, npath string, node *restic.Node, nodeErr error) error {
 		if nodeErr != nil {
-			return true, nodeErr
+			return nodeErr
 		}
 		if node == nil {
-			return true, nil
+			return nil
 		}
 
 		if statsOptions.countMode == countModeUniqueFilesByContents || statsOptions.countMode == countModeBlobsPerFile {
@@ -239,9 +237,9 @@ func statsWalkTree(statsOptions StatsOptions, repo restic.Repository, stats *Sta
 						}
 						if _, ok := stats.fileBlobs[nodePath][blobID]; !ok {
 							// is always a data blob since we're accessing it via a file's Content array
-							blobSize, found := repo.LookupBlobSize(blobID, restic.DataBlob)
+							blobSize, found := repo.LookupBlobSize(restic.DataBlob, blobID)
 							if !found {
-								return true, fmt.Errorf("blob %s not found for tree %s", blobID, parentTreeID)
+								return fmt.Errorf("blob %s not found for tree %s", blobID, parentTreeID)
 							}
 
 							// count the blob's size, then add this blob by this
@@ -269,10 +267,14 @@ func statsWalkTree(statsOptions StatsOptions, repo restic.Repository, stats *Sta
 				stats.TotalSize += node.Size
 			}
 
-			return false, nil
+			// Skip directory traversal for restore size mode
+			if node.Type == "dir" {
+				return walker.ErrSkipNode
+			}
+			return nil
 		}
 
-		return true, nil
+		return nil
 	}
 }
 

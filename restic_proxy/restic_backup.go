@@ -3,6 +3,10 @@ package resticProxy
 import (
 	"context"
 	"fmt"
+	"os"
+	"runtime"
+	"time"
+
 	"github.com/kubackup/kubackup/internal/server"
 	"github.com/kubackup/kubackup/internal/service/v1/common"
 	ser "github.com/kubackup/kubackup/internal/service/v1/task"
@@ -14,9 +18,6 @@ import (
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/ui/backup"
 	"gopkg.in/tomb.v2"
-	"os"
-	"runtime"
-	"time"
 )
 
 var taskHistoryService ser.Service
@@ -80,13 +81,13 @@ func RunBackup(opts BackupOptions, repoid int, taskinfo task.TaskInfo) error {
 	if opts.DryRun {
 		repo.SetDryRun()
 	}
-	lock, err := lockRepo(ctx, repo)
+	unlocker, ctx, err := lockRepo(ctx, repo)
 	if err != nil {
 		clean.Cleanup()
 		return err
 	}
 	clean.AddCleanCtx(func() {
-		unlockRepo(lock)
+		unlockRepo(unlocker)
 	})
 	rejectByNameFuncs, err := collectRejectByNameFuncs(opts, repo)
 	if err != nil {
@@ -120,9 +121,9 @@ func RunBackup(opts BackupOptions, repoid int, taskinfo task.TaskInfo) error {
 		return true
 	}
 
-	selectFilter := func(item string, fi os.FileInfo) bool {
+	selectFilter := func(item string, fi *fs.ExtendedFileInfo, fsys fs.FS) bool {
 		for _, reject := range rejectFuncs {
-			if reject(item, fi) {
+			if reject(item, extendedFileInfoToFileInfo(fi)) {
 				return false
 			}
 		}
@@ -134,15 +135,15 @@ func RunBackup(opts BackupOptions, repoid int, taskinfo task.TaskInfo) error {
 			return err
 		}
 
-		errorHandler := func(item string, err error) error {
-			return progressReporter.Error(item, err)
+		errorHandler := func(item string, err error) {
+			progressReporter.Error(item, err)
 		}
 
 		messageHandler := func(msg string, args ...interface{}) {
 			progressPrinter.P(msg, args...)
 		}
 
-		localVss := fs.NewLocalVss(errorHandler, messageHandler)
+		localVss := fs.NewLocalVss(errorHandler, messageHandler, fs.VSSConfig{})
 		defer localVss.DeleteSnapshots()
 		targetFS = localVss
 	}
@@ -213,7 +214,7 @@ func RunBackup(opts BackupOptions, repoid int, taskinfo task.TaskInfo) error {
 		if err != nil {
 			server.Logger().Error(err)
 		}
-		_, id, err := arch.Snapshot(ctx, targets, snapshotOpts)
+		_, id, summary, err := arch.Snapshot(ctx, targets, snapshotOpts)
 		if err != nil {
 			progressPrinter.E(fmt.Errorf("unable to save snapshot: %v", err).Error())
 		}
@@ -225,7 +226,7 @@ func RunBackup(opts BackupOptions, repoid int, taskinfo task.TaskInfo) error {
 		if !success {
 			progressPrinter.E(ErrInvalidSourceData.Error())
 		}
-		progressReporter.Finish(id, opts.DryRun)
+		progressReporter.Finish(id, summary, opts.DryRun)
 	}()
 	return nil
 
@@ -250,7 +251,7 @@ func findParentSnapshot(ctx context.Context, repo restic.Repository, opts Backup
 		f.Tags = []restic.TagList{opts.Tags.Flatten()}
 	}
 
-	sn, _, err := f.FindLatest(ctx, repo.Backend(), repo, snName)
+	sn, _, err := f.FindLatest(ctx, repo, repo, snName)
 	// Snapshot not found is ok if no explicit parent was set
 	if opts.Parent == "" && errors.Is(err, restic.ErrNoSnapshotFound) {
 		err = nil
@@ -310,3 +311,22 @@ func collectRejectByNameFuncs(opts BackupOptions, repo *repository.Repository) (
 
 	return fs, nil
 }
+
+// extendedFileInfoToFileInfo converts *fs.ExtendedFileInfo to os.FileInfo
+func extendedFileInfoToFileInfo(e *fs.ExtendedFileInfo) os.FileInfo {
+	if e == nil {
+		return nil
+	}
+	return &fileInfoAdapter{e: e}
+}
+
+type fileInfoAdapter struct {
+	e *fs.ExtendedFileInfo
+}
+
+func (f *fileInfoAdapter) Name() string       { return f.e.Name }
+func (f *fileInfoAdapter) Size() int64        { return f.e.Size }
+func (f *fileInfoAdapter) Mode() os.FileMode  { return f.e.Mode }
+func (f *fileInfoAdapter) ModTime() time.Time { return f.e.ModTime }
+func (f *fileInfoAdapter) IsDir() bool        { return f.e.Mode.IsDir() }
+func (f *fileInfoAdapter) Sys() interface{}   { return nil }

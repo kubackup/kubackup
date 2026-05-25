@@ -3,20 +3,6 @@ package resticProxy
 import (
 	"context"
 	"fmt"
-	operationModel "github.com/kubackup/kubackup/internal/entity/v1/operation"
-	repoModel "github.com/kubackup/kubackup/internal/entity/v1/repository"
-	"github.com/kubackup/kubackup/internal/server"
-	"github.com/kubackup/kubackup/internal/service/v1/common"
-	operationDao "github.com/kubackup/kubackup/internal/service/v1/operation"
-	"github.com/kubackup/kubackup/internal/store/log"
-	"github.com/kubackup/kubackup/internal/store/ws_task_info"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/checker"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/errors"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/fs"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/repository"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/ui"
-	"gopkg.in/tomb.v2"
 	"io/ioutil"
 	"math/rand"
 	"sort"
@@ -24,6 +10,21 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	operationModel "github.com/kubackup/kubackup/internal/entity/v1/operation"
+	repoModel "github.com/kubackup/kubackup/internal/entity/v1/repository"
+	"github.com/kubackup/kubackup/internal/server"
+	"github.com/kubackup/kubackup/internal/service/v1/common"
+	operationDao "github.com/kubackup/kubackup/internal/service/v1/operation"
+	"github.com/kubackup/kubackup/internal/store/log"
+	wsTaskInfo "github.com/kubackup/kubackup/internal/store/ws_task_info"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/checker"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/errors"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/fs"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/repository"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/ui"
+	"gopkg.in/tomb.v2"
 )
 
 var operationService operationDao.Service
@@ -161,13 +162,13 @@ func RunCheckSync(ctx context.Context, opts CheckOptions, gopts GlobalOptions, r
 		cancel()
 	})
 	if !opts.NoLock {
-		lock, err := lockRepoExclusive(ctx, repo)
+		unlocker, _, err := lockRepoExclusive(ctx, repo)
 		if err != nil {
 			clean.Cleanup()
 			return err
 		}
 		clean.AddCleanCtx(func() {
-			unlockRepo(lock)
+			unlockRepo(unlocker)
 		})
 	}
 	if spr == nil {
@@ -201,13 +202,13 @@ func RunCheck(opts CheckOptions, repoid int) (int, error) {
 	})
 	repo := repoHandler.repo
 	if !opts.NoLock {
-		lock, err := lockRepoExclusive(ctx, repo)
+		unlocker, _, err := lockRepoExclusive(ctx, repo)
 		if err != nil {
 			clean.Cleanup()
 			return 0, err
 		}
 		clean.AddCleanCtx(func() {
-			unlockRepo(lock)
+			unlockRepo(unlocker)
 		})
 	}
 	status := repoModel.StatusNone
@@ -283,7 +284,7 @@ func check(repo *repository.Repository, opts CheckOptions, gopts GlobalOptions, 
 	mixedFound := false
 	for _, hint := range hints {
 		switch hint.(type) {
-		case *checker.ErrDuplicatePacks, *checker.ErrOldIndexFormat:
+		case *checker.ErrDuplicatePacks:
 			spr.AppendByForce(wsTaskInfo.Info, fmt.Sprintf("%v\n", hint), false)
 			suggestIndexRebuild = true
 		case *checker.ErrMixedPack:
@@ -317,11 +318,9 @@ func check(repo *repository.Repository, opts CheckOptions, gopts GlobalOptions, 
 	go chkr.Packs(ctx, errChan)
 
 	for err := range errChan {
-		if checker.IsOrphanedPack(err) {
+		if packErr, ok := err.(*checker.PackError); ok && packErr.Orphaned {
 			orphanedPacks++
 			spr.Append(wsTaskInfo.Error, fmt.Sprintf("%v\n", err))
-		} else if err == checker.ErrLegacyLayout {
-			spr.Append(wsTaskInfo.Error, fmt.Sprint("repository still uses the S3 legacy layout\nPlease run `restic migrate s3legacy` to correct this.\n"))
 		} else {
 			errorsFound = true
 			spr.Append(wsTaskInfo.Error, fmt.Sprintf("%v\n", err))
@@ -362,9 +361,15 @@ func check(repo *repository.Repository, opts CheckOptions, gopts GlobalOptions, 
 	wg.Wait()
 
 	if opts.CheckUnused {
-		for _, id := range chkr.UnusedBlobs(ctx) {
-			spr.AppendByForce(wsTaskInfo.Info, fmt.Sprintf("unused blob %v\n", id), false)
+		unusedBlobs, err := chkr.UnusedBlobs(ctx)
+		if err != nil {
 			errorsFound = true
+			spr.Append(wsTaskInfo.Error, fmt.Sprintf("error checking unused blobs: %v\n", err))
+		} else {
+			for _, id := range unusedBlobs {
+				spr.AppendByForce(wsTaskInfo.Info, fmt.Sprintf("unused blob %v\n", id), false)
+				errorsFound = true
+			}
 		}
 	}
 
@@ -381,9 +386,9 @@ func check(repo *repository.Repository, opts CheckOptions, gopts GlobalOptions, 
 		for err := range errChan {
 			errorsFound = true
 			spr.Append(wsTaskInfo.Error, fmt.Sprintf("%v\n", err))
-			if err, ok := err.(*checker.ErrPackData); ok {
-				if strings.Contains(err.Error(), "wrong data returned, hash is") {
-					salvagePacks = append(salvagePacks, err.PackID)
+			if packErr, ok := err.(*repository.ErrPackData); ok {
+				if strings.Contains(packErr.Error(), "wrong data returned, hash is") {
+					salvagePacks = append(salvagePacks, packErr.PackID)
 				}
 			}
 		}

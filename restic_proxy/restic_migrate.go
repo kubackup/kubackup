@@ -81,13 +81,13 @@ func RunMigrate(opts MigrateOptions, repoid int, action string) (int, error) {
 	clean.AddCleanCtx(func() {
 		cancel()
 	})
-	lock, err := lockRepoExclusive(ctx, repo)
+	unlocker, _, err := lockRepoExclusive(ctx, repo)
 	if err != nil {
 		clean.Cleanup()
 		return 0, err
 	}
 	clean.AddCleanCtx(func() {
-		unlockRepo(lock)
+		unlockRepo(unlocker)
 	})
 	status := repoModel.StatusNone
 	oper := operationModel.Operation{

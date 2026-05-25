@@ -1,6 +1,10 @@
 package resticProxy
 
 import (
+	"math"
+	"sort"
+	"time"
+
 	"github.com/kubackup/kubackup/internal/model"
 	"github.com/kubackup/kubackup/internal/server"
 	"github.com/kubackup/kubackup/internal/service/v1/common"
@@ -8,16 +12,11 @@ import (
 	wsTaskInfo "github.com/kubackup/kubackup/internal/store/ws_task_info"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/archiver"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/ui"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/ui/backup"
 	"github.com/kubackup/kubackup/pkg/utils"
-	"math"
-	"sort"
-	"time"
 )
 
 type TaskProgress struct {
-	*ui.StdioWrapper
 	task           wsTaskInfo.WsTaskInfo
 	weightCount    float64 //数量进度权重
 	weightSize     float64 //大小进度权重
@@ -217,7 +216,7 @@ func (t *TaskProgress) ReportTotal(start time.Time, s archiver.ScanStats) {
 		return
 	}
 }
-func (t *TaskProgress) Finish(snapshotID restic.ID, start time.Time, summary *backup.Summary, dryRun bool) {
+func (t *TaskProgress) Finish(snapshotID restic.ID, summary *archiver.Summary, dryRun bool) {
 	var summaryOut *model.SummaryOutput
 	var p1 *model.StatusUpdate
 	if summary != nil {
@@ -234,7 +233,7 @@ func (t *TaskProgress) Finish(snapshotID restic.ID, start time.Time, summary *ba
 			DataAdded:           utils.FormatBytes(summary.ItemStats.DataSize + summary.ItemStats.TreeSize),
 			TotalFilesProcessed: summary.Files.New + summary.Files.Changed + summary.Files.Unchanged,
 			TotalBytesProcessed: utils.FormatBytes(summary.ProcessedBytes),
-			TotalDuration:       utils.FormatDuration(time.Since(start)),
+			TotalDuration:       utils.FormatDuration(time.Since(summary.BackupStart)),
 			SnapshotID:          snapshotID.Str(),
 			DryRun:              dryRun,
 		}

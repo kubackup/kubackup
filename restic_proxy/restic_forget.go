@@ -4,21 +4,22 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
+	"sort"
+	"strconv"
+
 	operationModel "github.com/kubackup/kubackup/internal/entity/v1/operation"
 	repoModel "github.com/kubackup/kubackup/internal/entity/v1/repository"
 	"github.com/kubackup/kubackup/internal/server"
 	"github.com/kubackup/kubackup/internal/service/v1/common"
 	"github.com/kubackup/kubackup/internal/store/log"
-	"github.com/kubackup/kubackup/internal/store/ws_task_info"
+	wsTaskInfo "github.com/kubackup/kubackup/internal/store/ws_task_info"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/errors"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/repository"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/ui/table"
 	"gopkg.in/tomb.v2"
-	"io"
-	"os"
-	"sort"
-	"strconv"
 )
 
 type ForgetPolicyCount int
@@ -97,13 +98,13 @@ func RunForget(opts ForgetOptions, repoid int, snapshotids []string) (int, error
 		cancel()
 	})
 
-	lock, err := lockRepoExclusive(ctx, repo)
+	unlocker, _, err := lockRepoExclusive(ctx, repo)
 	if err != nil {
 		clean.Cleanup()
 		return 0, err
 	}
 	clean.AddCleanCtx(func() {
-		unlockRepo(lock)
+		unlockRepo(unlocker)
 	})
 	status := repoModel.StatusNone
 	oper := operationModel.Operation{
@@ -167,8 +168,8 @@ func RunForgetSync(opts ForgetOptions, repoid int, snapshotids []string) error {
 	repo := repoHandler.repo
 
 	ctx := context.Background()
-	lock, err := lockRepoExclusive(ctx, repo)
-	defer unlockRepo(lock)
+	unlocker, _, err := lockRepoExclusive(ctx, repo)
+	defer unlockRepo(unlocker)
 	if err != nil {
 		return err
 	}
@@ -186,7 +187,7 @@ func forget(opts ForgetOptions, ctx context.Context, repo *repository.Repository
 	var snapshots restic.Snapshots
 	removeSnIDs := restic.NewIDSet()
 
-	for sn := range FindFilteredSnapshots(ctx, repo.Backend(), repo, &opts.SnapshotFilter, snapshotids) {
+	for sn := range FindFilteredSnapshots(ctx, repo, repo, &opts.SnapshotFilter, snapshotids) {
 		snapshots = append(snapshots, sn)
 	}
 	if len(snapshots) <= 0 {

@@ -2,17 +2,32 @@ package utils
 
 import (
 	"fmt"
-	"github.com/super-l/machine-code/machine"
+	"os"
 	"runtime"
 )
 
 // GetSN 获取机器序列号
 func GetSN() string {
-	sn, err := machine.GetBoardSerialNumber()
-	if err != nil {
-		return ""
+	return getMachineSerialNumber()
+}
+
+func getMachineSerialNumber() string {
+	switch runtime.GOOS {
+	case "linux":
+		data, err := os.ReadFile("/etc/machine-id")
+		if err == nil && len(data) > 0 {
+			return string(data[:len(data)-1]) // remove newline
+		}
+	case "darwin":
+		data, err := os.ReadFile("/var/db/SystemID")
+		if err == nil && len(data) > 0 {
+			return string(data)
+		}
+	case "windows":
+		// Windows implementation would require WMI or registry access
+		// For simplicity, return empty string
 	}
-	return sn
+	return ""
 }
 
 // GetCpuCores 获取cpu核心总数量

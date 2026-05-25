@@ -3,6 +3,11 @@ package resticProxy
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"path/filepath"
+	"sync"
+	"time"
+
 	"github.com/kubackup/kubackup/internal/backend/hwobs"
 	"github.com/kubackup/kubackup/internal/backend/txcos"
 	"github.com/kubackup/kubackup/internal/consts/system_status"
@@ -13,6 +18,7 @@ import (
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend/azure"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend/b2"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend/cache"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend/gs"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend/limiter"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend/local"
@@ -23,17 +29,12 @@ import (
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend/s3"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend/sftp"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend/swift"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/cache"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/debug"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/errors"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/fs"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/options"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/repository"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
-	"net/url"
-	"path/filepath"
-	"sync"
-	"time"
 )
 
 // TimeFormat is the format used for all timestamps printed by restic.
@@ -41,7 +42,7 @@ const TimeFormat = "2006-01-02 15:04:05"
 
 var version = "0.16.5"
 
-type backendWrapper func(r restic.Backend) (restic.Backend, error)
+type backendWrapper func(r backend.Backend) (backend.Backend, error)
 
 // GlobalOptions hold all global options for restic.
 type GlobalOptions struct {
@@ -239,7 +240,7 @@ func InitRepository() {
 			cancel:   cancel,
 			gopts:    option,
 		}
-		_, _ = restic.RemoveAllLocks(ctx, openRepository)
+		_, _ = repository.RemoveAllLocks(ctx, openRepository)
 		err = openRepository.LoadIndex(option.ctx, nil)
 		if err != nil {
 			fmt.Printf("仓库%s加载索引失败：%v\n", rep.Name, err)
@@ -559,7 +560,7 @@ func parseConfig(loc location.Location, gopts GlobalOptions, opts options.Option
 }
 
 // Open the backend specified by a location config.
-func open(ctx context.Context, s string, gopts GlobalOptions, opts options.Options) (restic.Backend, error) {
+func open(ctx context.Context, s string, gopts GlobalOptions, opts options.Options) (backend.Backend, error) {
 	debug.Log("parsing location %v", location.StripPassword(gopts.backends, s))
 	loc, err := location.Parse(gopts.backends, s)
 	if err != nil {
@@ -567,7 +568,7 @@ func open(ctx context.Context, s string, gopts GlobalOptions, opts options.Optio
 		return nil, errors.Fatalf("parsing repository location failed: %v", err)
 	}
 
-	var be restic.Backend
+	var be backend.Backend
 
 	cfg, err := parseConfig(loc, gopts, opts)
 	if err != nil {
@@ -601,7 +602,7 @@ func open(ctx context.Context, s string, gopts GlobalOptions, opts options.Optio
 	}
 
 	// check if config is there
-	fi, err := be.Stat(gopts.ctx, restic.Handle{Type: restic.ConfigFile})
+	fi, err := be.Stat(gopts.ctx, backend.Handle{Type: restic.ConfigFile})
 	if err != nil {
 		return nil, errors.Fatalf("unable to open config file: %v\nIs there a repository at the following location?\n%v", err, location.StripPassword(gopts.backends, s))
 	}
@@ -614,7 +615,7 @@ func open(ctx context.Context, s string, gopts GlobalOptions, opts options.Optio
 }
 
 // Create the backend specified by URI.
-func create(ctx context.Context, s string, gopts GlobalOptions, opts options.Options) (restic.Backend, error) {
+func create(ctx context.Context, s string, gopts GlobalOptions, opts options.Options) (backend.Backend, error) {
 	debug.Log("parsing location %v", s)
 	loc, err := location.Parse(gopts.backends, s)
 	if err != nil {

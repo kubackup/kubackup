@@ -114,7 +114,7 @@
         </el-form-item>
         <el-form-item :label="$t('msg.cron')" prop="execTimeCron">
           <el-popover v-model="cronPopover">
-            <cron @change="changeCron" @close="cronPopover=false"/>
+            <cron ref="cronRef" :i18n="currentLang" @change="changeCron" @close="cronPopover=false"/>
             <el-input
               slot="reference"
               v-model="temp.execTimeCron"
@@ -134,6 +134,10 @@
 
         <el-form-item v-if="dialogStatus === 'create'" :label="$t('msg.backupNow')">
           <el-switch v-model="temp.immediate"/>
+        </el-form-item>
+        <el-form-item :label="$t('msg.syncDelete')">
+          <el-switch v-model="temp.syncDelete"/>
+          <span style="color: #999; font-size: 12px; margin-left: 10px">{{ $t('msg.syncDeleteTip') }}</span>
         </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
@@ -225,8 +229,8 @@ export default {
   data() {
     return {
       status: [
-        {name: this.$t('msg.run'), status: 1},
-        {name: this.$t('msg.stop'), status: 2}
+        {name: this.$t('msg.run'), status: '1'},
+        {name: this.$t('msg.stop'), status: '2'}
       ],
       dialogDirVisible: false,
       dirCur: "/",
@@ -258,11 +262,13 @@ export default {
         name: '',
         path: '/',
         repositoryId: '',
-        status: 2,
+        status: '2',
         immediate: false,
         execTimeCron: '',
-        readConcurrency: 2
+        readConcurrency: 2,
+        syncDelete: false
       },
+      currentLang: '',
       rules: {
         name: [{required: true, message: this.$t('msg.tips.emptyError'), trigger: 'blur'}],
         status: [{required: true, message: this.$t('msg.pleaseSelectType'), trigger: 'change'}],
@@ -277,8 +283,31 @@ export default {
     repolist().then(response => {
       this.repositoryList = response.data
     })
+    // 初始化 cron 语言
+    this.currentLang = this.getCronLang(localStorage.getItem('locale'))
+    // 监听语言变化
+    window.addEventListener('storage', this.handleLocaleChange)
+  },
+  beforeDestroy() {
+    window.removeEventListener('storage', this.handleLocaleChange)
   },
   methods: {
+    getCronLang(locale) {
+      // vue-cron 使用 'cn' 和 'en'，项目使用 'zh-CN' 和 'en-US'
+      if (!locale || locale === 'zh-CN') {
+        return 'cn'
+      }
+      return 'en'
+    },
+    handleLocaleChange(e) {
+      if (e.key === 'locale') {
+        this.currentLang = this.getCronLang(e.newValue)
+        // 更新 cron 组件的内部语言状态
+        if (this.$refs.cronRef) {
+          this.$refs.cronRef.i18n = this.currentLang
+        }
+      }
+    },
     dateFormat(row, column, cellValue, index) {
       return dateFormat(cellValue, 'yyyy-MM-dd hh:mm')
     },
@@ -383,11 +412,16 @@ export default {
         repositoryId: '',
         status: 2,
         immediate: false,
-        execTimeCron: ''
+        execTimeCron: '',
+        syncDelete: false
       }
     },
     handleEdit(row) {
       this.temp = Object.assign({}, row)
+      // 确保 status 为字符串类型，与 el-select 的 option value 类型一致
+      if (this.temp.status !== undefined && this.temp.status !== null) {
+        this.temp.status = String(this.temp.status)
+      }
       this.dialogStatus = 'update'
       this.dialogFormVisible = true
       this.$nextTick(() => {
@@ -408,7 +442,7 @@ export default {
         this.$notify.success({
           title: this.$t('msg.tips.backuping'),
           dangerouslyUseHTMLString: true,
-          message: '<a style="color: #409EFF" href="/Task/index">'+this.$t('msg.tasks')+'</a>'
+          message: '<a style="color: #409EFF" href="/Task/index">'+this.$t('msg.taskDetail')+'</a>'
         })
       }).finally(() => {
         this.fullscreenLoading = false
@@ -535,6 +569,11 @@ export default {
   .title {
     color: $menuHover;
   }
+}
+
+// 隐藏 cron 组件自带的语言切换按钮
+#changeContab .language {
+  display: none !important;
 }
 
 .nexttime {

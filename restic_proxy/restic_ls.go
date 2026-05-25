@@ -3,17 +3,17 @@ package resticProxy
 import (
 	"context"
 	"fmt"
-	"github.com/kubackup/kubackup/internal/server"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/errors"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/fs"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
-	"github.com/kubackup/kubackup/pkg/utils"
 	"os"
 	"path"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/kubackup/kubackup/internal/server"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/errors"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/fs"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
+	"github.com/kubackup/kubackup/pkg/utils"
 )
 
 type lsSnapshot struct {
@@ -52,7 +52,7 @@ func addNode(nodes []interface{}, path string, node *restic.Node) []interface{} 
 func getNode(path string, node *restic.Node) interface{} {
 	n := lsNode{
 		Name:        node.Name,
-		Type:        node.Type,
+		Type:        string(node.Type),
 		Path:        path,
 		UID:         node.UID,
 		GID:         node.GID,
@@ -64,7 +64,7 @@ func getNode(path string, node *restic.Node) interface{} {
 		ChangeTime:  node.ChangeTime,
 		StructType:  "node",
 	}
-	if node.Type == "file" {
+	if node.Type == restic.NodeTypeFile {
 		n.Size = utils.FormatBytes(n.size)
 	}
 	return n
@@ -88,12 +88,7 @@ func RunLs(targetP string, repoid int, snapshotid string) (*LsRes, error) {
 	})
 	defer clean.Cleanup()
 
-	snapshotLister, err := backend.MemorizeList(ctx, repo.Backend(), restic.SnapshotFile)
-	if err != nil {
-		return nil, err
-	}
-
-	sn, subfolder, err := (&restic.SnapshotFilter{}).FindLatest(ctx, snapshotLister, repo, snapshotid)
+	sn, subfolder, err := (&restic.SnapshotFilter{}).FindLatest(ctx, repo, repo, snapshotid)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +130,7 @@ func walk(ctx context.Context, repo restic.BlobLoader, prefix string, tree *rest
 
 	for _, node := range tree.Nodes {
 		p := path.Join(prefix, node.Name)
-		if node.Type != "dir" {
+		if node.Type != restic.NodeTypeDir {
 			if p == targetP || strings.HasPrefix(p, targetP) {
 				return addNode(res, p, node), nil
 			}
@@ -153,7 +148,7 @@ func walk(ctx context.Context, repo restic.BlobLoader, prefix string, tree *rest
 			}
 			for _, subnode := range subtree.Nodes {
 				subp := path.Join(p, subnode.Name)
-				if subnode.Type == "dir" {
+				if subnode.Type == restic.NodeTypeDir {
 					dirnode = addNode(dirnode, subp, subnode)
 				} else {
 					filenode = addNode(filenode, subp, subnode)

@@ -34,7 +34,12 @@ func NewRestorePrinter(t wsTaskInfo.WsTaskInfo) *restorePrinter {
 
 var _ restore.ProgressPrinter = &restorePrinter{}
 
-func (r *restorePrinter) Update(filesFinished, filesTotal, allBytesWritten, allBytesTotal uint64, duration time.Duration) {
+func (r *restorePrinter) Update(progress restore.State, duration time.Duration) {
+	filesFinished := progress.FilesFinished
+	filesTotal := progress.FilesTotal
+	allBytesWritten := progress.AllBytesWritten
+	allBytesTotal := progress.AllBytesTotal
+
 	if r.filesTotal != filesTotal || r.allBytesTotal != allBytesTotal {
 		r.ReportTotal(duration, allBytesTotal, filesTotal)
 	}
@@ -42,8 +47,11 @@ func (r *restorePrinter) Update(filesFinished, filesTotal, allBytesWritten, allB
 	r.allBytesTotal = allBytesTotal
 
 	// 预计剩余时间
-	todo := float64(allBytesTotal - allBytesWritten)
-	secs := uint64(float64(duration/time.Second) / float64(allBytesWritten) * todo)
+	var secs uint64
+	if allBytesWritten > 0 {
+		todo := float64(allBytesTotal - allBytesWritten)
+		secs = uint64(float64(duration/time.Second) / float64(allBytesWritten) * todo)
+	}
 	avg := ""
 	if duration/time.Second > 0 {
 		avg = utils.FormatBytesSpeed(allBytesWritten / uint64(duration/time.Second))
@@ -72,7 +80,12 @@ func (r *restorePrinter) Update(filesFinished, filesTotal, allBytesWritten, allB
 	r.task.SendMsg(&status)
 }
 
-func (r *restorePrinter) Finish(filesFinished, filesTotal, allBytesWritten, allBytesTotal uint64, duration time.Duration) {
+func (r *restorePrinter) Finish(progress restore.State, duration time.Duration) {
+	filesFinished := progress.FilesFinished
+	filesTotal := progress.FilesTotal
+	allBytesWritten := progress.AllBytesWritten
+	allBytesTotal := progress.AllBytesTotal
+
 	opt := common.DBOptions{}
 
 	p := &model.StatusUpdate{}
@@ -142,6 +155,7 @@ func (r *restorePrinter) Error(item string, err error) error {
 	}
 	return err
 }
+
 func (r *restorePrinter) ScannerError(err error) error {
 	errorUpdate := &model.ErrorUpdate{
 		MessageType: "error",
@@ -155,6 +169,11 @@ func (r *restorePrinter) ScannerError(err error) error {
 	}
 	return nil
 }
+
+func (r *restorePrinter) CompleteItem(action restore.ItemAction, item string, size uint64) {
+	// 可以在这里处理完成项目的逻辑
+}
+
 func (r *restorePrinter) ReportTotal(duration time.Duration, totalSize, totalCount uint64) {
 	ver := &model.VerboseUpdate{
 		MessageType: "verbose_status",

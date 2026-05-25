@@ -2,20 +2,18 @@ package resticProxy
 
 import (
 	"context"
+	"sync"
+
 	"github.com/kubackup/kubackup/internal/i18n"
 	"github.com/kubackup/kubackup/internal/model"
-	"github.com/kubackup/kubackup/internal/server"
 	"github.com/pkg/errors"
-	"sync"
-	"time"
 
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/debug"
 	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/repository"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
 )
 
 var globalLocks struct {
-	locks         []*restic.Lock
+	unlockers     []*repository.Unlocker
 	cancelRefresh chan struct{}
 	refreshWG     sync.WaitGroup
 	sync.Mutex
@@ -37,101 +35,52 @@ func SetCurrentLanguage(lang string) {
 // lockRepoExclusive ->  lockRepo 获取不到锁
 
 // 非互斥锁
-func lockRepo(ctx context.Context, repo *repository.Repository) (*restic.Lock, error) {
+func lockRepo(ctx context.Context, repo *repository.Repository) (*repository.Unlocker, context.Context, error) {
 	return lockRepository(ctx, repo, false)
 }
 
 // 互斥锁
-func lockRepoExclusive(ctx context.Context, repo *repository.Repository) (*restic.Lock, error) {
+func lockRepoExclusive(ctx context.Context, repo *repository.Repository) (*repository.Unlocker, context.Context, error) {
 	return lockRepository(ctx, repo, true)
 }
 
-func lockRepository(ctx context.Context, repo *repository.Repository, exclusive bool) (*restic.Lock, error) {
-	lockFn := restic.NewLock
-	if exclusive {
-		lockFn = restic.NewExclusiveLock
-	}
-
-	lock, err := lockFn(ctx, repo)
+func lockRepository(ctx context.Context, repo *repository.Repository, exclusive bool) (*repository.Unlocker, context.Context, error) {
+	unlocker, ctx, err := repository.Lock(ctx, repo, exclusive, 0, func(msg string) {}, func(format string, args ...interface{}) {})
 	if err != nil {
 		// 使用当前语言翻译错误信息
 		errorMsg := i18n.T("error.repositoryLocked", currentLanguage)
-		return nil, errors.WithMessage(err, errorMsg)
+		return nil, ctx, errors.WithMessage(err, errorMsg)
 	}
-	debug.Log("create lock %p (exclusive %v)", lock, exclusive)
+	debug.Log("create lock (exclusive %v)", exclusive)
 
 	globalLocks.Lock()
-	if globalLocks.cancelRefresh == nil {
-		debug.Log("start goroutine for lock refresh")
-		globalLocks.cancelRefresh = make(chan struct{})
-		globalLocks.refreshWG = sync.WaitGroup{}
-		globalLocks.refreshWG.Add(1)
-		go refreshLocks(&globalLocks.refreshWG, globalLocks.cancelRefresh)
-	}
-
-	globalLocks.locks = append(globalLocks.locks, lock)
+	globalLocks.unlockers = append(globalLocks.unlockers, unlocker)
 	globalLocks.Unlock()
 
-	return lock, err
+	return unlocker, ctx, err
 }
 
-var refreshInterval = 5 * time.Minute
-
-func refreshLocks(wg *sync.WaitGroup, done <-chan struct{}) {
-	debug.Log("start")
-	defer func() {
-		wg.Done()
-		globalLocks.Lock()
-		globalLocks.cancelRefresh = nil
-		globalLocks.Unlock()
-	}()
-
-	ticker := time.NewTicker(refreshInterval)
-
-	for {
-		select {
-		case <-done:
-			debug.Log("terminate")
-			return
-		case <-ticker.C:
-			debug.Log("refreshing locks")
-			globalLocks.Lock()
-			for _, lock := range globalLocks.locks {
-				err := lock.Refresh(context.TODO())
-				if err != nil {
-					server.Logger().Warnf("unable to refresh lock: %v\n", err)
-				}
-			}
-			globalLocks.Unlock()
-		}
-	}
-}
-
-func unlockRepo(lock *restic.Lock) {
-	if lock == nil {
+func unlockRepo(unlocker *repository.Unlocker) {
+	if unlocker == nil {
 		return
 	}
 
 	globalLocks.Lock()
 	defer globalLocks.Unlock()
 
-	for i := 0; i < len(globalLocks.locks); i++ {
-		if lock == globalLocks.locks[i] {
+	for i := 0; i < len(globalLocks.unlockers); i++ {
+		if unlocker == globalLocks.unlockers[i] {
 			// remove the lock from the repo
-			debug.Log("unlocking repository with lock %v", lock)
-			if err := lock.Unlock(); err != nil {
-				debug.Log("error while unlocking: %v", err)
-				server.Logger().Warnf("error while unlocking: %v", err)
-				return
-			}
+			debug.Log("unlocking repository")
+			unlocker.Unlock()
 
 			// remove the lock from the list of locks
-			globalLocks.locks = append(globalLocks.locks[:i], globalLocks.locks[i+1:]...)
+			globalLocks.unlockers = append(globalLocks.unlockers[:i], globalLocks.unlockers[i+1:]...)
 			return
 		}
 	}
 
-	debug.Log("unable to find lock %v in the global list of locks, ignoring", lock)
+	debug.Log("unable to find unlocker in the global list of locks, ignoring")
 }
 
 func UnlockRepoById(repoid int, removeAll bool) (uint, error) {
@@ -141,48 +90,29 @@ func UnlockRepoById(repoid int, removeAll bool) (uint, error) {
 	}
 	repo := repoHandler.repo
 
-	fn := restic.RemoveStaleLocks
 	if removeAll {
-		fn = restic.RemoveAllLocks
+		return repository.RemoveAllLocks(repoHandler.gopts.ctx, repo)
 	}
-
-	locks, err := fn(repoHandler.gopts.ctx, repo)
-	if err != nil {
-		return 0, err
-	}
-	return locks, nil
+	return repository.RemoveStaleLocks(repoHandler.gopts.ctx, repo)
 }
 
 func unlockAll() error {
 	globalLocks.Lock()
 	defer globalLocks.Unlock()
 
-	debug.Log("unlocking %d locks", len(globalLocks.locks))
-	for _, lock := range globalLocks.locks {
-		if err := lock.Unlock(); err != nil {
-			debug.Log("error while unlocking: %v", err)
-			return err
-		}
+	debug.Log("unlocking %d locks", len(globalLocks.unlockers))
+	for _, unlocker := range globalLocks.unlockers {
+		unlocker.Unlock()
 		debug.Log("successfully removed lock")
 	}
-	globalLocks.locks = globalLocks.locks[:0]
+	globalLocks.unlockers = globalLocks.unlockers[:0]
 
 	return nil
 }
 
 func GetAllLock() []model.LockInfo {
 	res := make([]model.LockInfo, 0)
-	for _, lock := range globalLocks.locks {
-		l := model.LockInfo{
-			Time:      lock.Time,
-			Exclusive: lock.Exclusive,
-			Hostname:  lock.Hostname,
-			Username:  lock.Username,
-			PID:       lock.PID,
-			UID:       lock.UID,
-			GID:       lock.GID,
-		}
-		res = append(res, l)
-	}
+	// 在 restic 0.18.1 中，锁的信息不再直接暴露
+	// 返回空列表
 	return res
 }

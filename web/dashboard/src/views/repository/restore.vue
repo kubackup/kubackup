@@ -123,7 +123,7 @@
           <el-input v-model="restoreOpt.dirCur" disabled>
             <el-button slot="append" @click="openDirSelect()">{{ $t('msg.select') }}</el-button>
           </el-input>
-          <span style="color: red">{{ $t('restore.defaultPathTip', {path: listQuery.path}) }}</span>
+          <span style="color: red">{{ $t('msg.restore.defaultPathTip', {path: listQuery.path}) }}</span>
         </el-form-item>
         <el-form-item :label="$t('msg.title.finalPath')+'：'" prop="path">
           <span>{{ restoreOpt.dist }}</span>
@@ -132,7 +132,13 @@
           <el-switch
             v-model="restoreOpt.verify">
           </el-switch>
-          <p style="color: red">{{ $t('restore.verifyTip') }}</p>
+          <p style="color: red">{{ $t('msg.restore.verifyTip') }}</p>
+        </el-form-item>
+        <el-form-item :label="$t('msg.restore.filesDeleted')">
+          <span>{{ restoreOpt.filesDeleted || 'N/A' }}</span>
+        </el-form-item>
+        <el-form-item :label="$t('msg.restore.dirsDeleted')">
+          <span>{{ restoreOpt.dirsDeleted || 'N/A' }}</span>
         </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
@@ -215,7 +221,9 @@ export default {
         snapid: '',
         include: '',
         dist: '',
-        verify: false
+        verify: false,
+        filesDeleted: 0,
+        dirsDeleted: 0
       },
       listLoading: false,
       treeLoading: false,
@@ -223,7 +231,7 @@ export default {
       curSnap: {},
       activeName: '0',
       searchType: [
-        {code: 0, name: this.$t('msg.repository')},
+        {code: 0, name: this.$t('msg.repositoryName')},
         {code: 1, name: this.$t('msg.snapshot')}
       ],
       fileSearch: {
@@ -404,7 +412,7 @@ export default {
     },
     restoreSnapHandler() {
       const snapid = this.restoreOpt.snapid
-      this.$confirm(this.$t('restore.confirmMessage', {id: snapid}), this.$t('restore.title'), {
+      this.$confirm(this.$t('msg.restore.confirmMessage', {id: snapid}), this.$t('msg.restore.title'), {
         type: 'warning'
       }).then(() => {
         const data = {
@@ -416,8 +424,8 @@ export default {
           this.dialogDirVisible = false
           this.dialogFormVisible = false
           this.$notify.success({
-            title: this.$t('restore.inProgress'),
-            message: this.$t('restore.checkTaskMessage'),
+            title: this.$t('msg.restore.inProgress'),
+            message: this.$t('msg.restore.checkTaskMessage'),
             dangerouslyUseHTMLString: true
           })
         }).finally(() => {
@@ -425,7 +433,7 @@ export default {
           this.dialogFormVisible = false
         })
       }).catch(() => {
-        this.$notify.info({title: this.$t('common.cancel')})
+        this.$notify.info({title: this.$t('msg.common.cancel')})
       })
     },
     loadSnapFiles(snap) {

@@ -81,7 +81,7 @@
                     placement="top"
                   >
                     <div class="timeline">
-                      <span class="snap">{{ item.short_id }}</span>
+                      <span class="snap" @click="showSnapStats(item)">{{ item.short_id }}</span>
                       <el-button
                         class="restore_btn"
                         type="text"
@@ -108,6 +108,15 @@
         </el-col>
       </el-row>
     </div>
+    <el-dialog :title="$t('msg.title.dataDetails')" :visible.sync="statsDialogVisible" top="5vh" width="600px">
+      <el-table :data="statsTableData" border style="width: 100%">
+        <el-table-column prop="label" :label="$t('msg.name')"/>
+        <el-table-column prop="value" :label="$t('msg.value')"/>
+      </el-table>
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="statsDialogVisible = false">{{ $t('msg.close') }}</el-button>
+      </div>
+    </el-dialog>
     <el-dialog :title="textMap[dialogStatus]" :visible.sync="dialogFormVisible" top="5vh" width="500px">
       <div>
         <el-input :placeholder="$t('msg.pleaseInput')" type="Number" v-model="temp.n" class="input-with-select" maxlength="2">
@@ -159,6 +168,10 @@ export default {
       snapList: [],
       hostname: '',
       pathList: [],
+      selectedSnap: null,
+      snapStats: {},
+      statsDialogVisible: false,
+      statsTableData: [],
       forgetObj: {
         status: 1,
         init: true,
@@ -228,6 +241,34 @@ export default {
     },
     formatType(code) {
       return this.typeList.find(item => item.code === code)
+    },
+    showSnapStats(snap) {
+      this.selectedSnap = snap
+      const hasSummary = snap.summary !== undefined && snap.summary !== null
+      const summary = hasSummary ? snap.summary : {}
+      const compressionRatio = hasSummary && summary.data_added && summary.data_added_packed && summary.data_added > 0
+        ? (((summary.data_added - summary.data_added_packed) / summary.data_added) * 100).toFixed(2) + '%' 
+        : 'N/A'
+      this.statsTableData = [
+        { label: this.$t('msg.snapshotId'), value: snap.short_id },
+        { label: this.$t('msg.time'), value: snap.time },
+        { label: this.$t('msg.backup.filesNew'), value: hasSummary && summary.files_new !== undefined ? summary.files_new : 'N/A' },
+        { label: this.$t('msg.backup.filesChanged'), value: hasSummary && summary.files_changed !== undefined ? summary.files_changed : 'N/A' },
+        { label: this.$t('msg.backup.filesUnmodified'), value: hasSummary && summary.files_unmodified !== undefined ? summary.files_unmodified : 'N/A' },
+        { label: this.$t('msg.backup.dirsNew'), value: hasSummary && summary.dirs_new !== undefined ? summary.dirs_new : 'N/A' },
+        { label: this.$t('msg.backup.dirsChanged'), value: hasSummary && summary.dirs_changed !== undefined ? summary.dirs_changed : 'N/A' },
+        { label: this.$t('msg.backup.dirsUnmodified'), value: hasSummary && summary.dirs_unmodified !== undefined ? summary.dirs_unmodified : 'N/A' },
+        { label: this.$t('msg.backup.bytesAdded'), value: hasSummary && summary.data_added !== undefined ? this.formatBytes(summary.data_added) : 'N/A' },
+        { label: this.$t('msg.backup.compressionRatio'), value: compressionRatio }
+      ]
+      this.statsDialogVisible = true
+    },
+    formatBytes(bytes) {
+      if (!bytes) return null
+      if (bytes < 1024) return bytes + ' B'
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB'
+      if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB'
+      return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
     },
     deleteSnap(snapid) {
       this.$confirm(this.$t('msg.confirmDeleteSnapshot') + '"' + snapid + '"？', this.$t('msg.deleteSnapshot'), {

@@ -158,6 +158,7 @@ export const msg = {
   repositoryId: 'Repository ID',
   snapshot: 'Snapshot',
   snapshots: 'Snapshots',
+  repositoryName: 'Repository',
   tasks: 'Tasks',
   cleanPolicy: 'Cleanup Policy',
   repos: 'Repositories',
@@ -166,6 +167,7 @@ export const msg = {
   execTimeCron: 'Execution Time',
   cron: 'Cron Expression',
   progress: 'Progress',
+  taskDetail: 'Task Detail',
   data: 'Data',
   files: 'Files',
   statusLabel: 'Status',
@@ -198,6 +200,8 @@ export const msg = {
   repositoryVersion: 'Format Version',
   root: 'Root',
   total: 'Total',
+  time: 'Time',
+  value: 'Value',
   set: 'Set',
   email: 'Email',
   phone: 'Phone',
@@ -245,8 +249,26 @@ export const msg = {
     inProgress: 'Restore in progress',
     checkTaskMessage: 'Please check the progress in the <a href="#/task">Task</a> page',
     defaultPathTip: 'Default restore to "/", restore data is the original path of the file. If modified, the data restore path is the current selected path plus the backup path, e.g.: /root{path}, /root is the selected path',
-    verifyTip: 'Enable data integrity verification, verification time is longer, please choose carefully!'
+    verifyTip: 'Enable data integrity verification, verification time is longer, please choose carefully!',
+    filesDeleted: 'Files Deleted',
+    dirsDeleted: 'Directories Deleted'
   },
+  backup: {
+    filesNew: 'New Files',
+    filesChanged: 'Changed Files',
+    filesUnmodified: 'Unmodified Files',
+    dirsNew: 'New Directories',
+    dirsChanged: 'Changed Directories',
+    dirsUnmodified: 'Unmodified Directories',
+    bytesAdded: 'Bytes Added',
+    bytesChanged: 'Bytes Changed',
+    bytesUnmodified: 'Bytes Unmodified',
+    compressionRatio: 'Compression Ratio'
+  },
+  syncDelete: 'Sync Delete',
+  syncDeleteTip: 'Delete files that no longer exist at the backup source',
+  minPackSize: 'Min Pack Size',
+  minPackSizeTip: 'Set the minimum pack size threshold for prune command (MiB)',
   packSize: 'Pack Size',
   unit: {
     mib: 'MiB'

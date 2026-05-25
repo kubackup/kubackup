@@ -3,13 +3,14 @@ package main
 import (
 	"embed"
 	"fmt"
+	"os"
+	"runtime"
+
 	"github.com/kubackup/kubackup"
 	"github.com/kubackup/kubackup/internal/cmdServer"
 	"github.com/kubackup/kubackup/internal/route"
 	"github.com/kubackup/kubackup/internal/server"
 	"github.com/spf13/cobra"
-	"os"
-	"runtime"
 )
 
 var (

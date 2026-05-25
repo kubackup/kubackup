@@ -4,13 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/cenkalti/backoff/v4"
-	"github.com/huaweicloud/huaweicloud-sdk-go-obs/obs"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend/layout"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend/location"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/errors"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
 	"hash"
 	"io"
 	"math"
@@ -19,9 +12,17 @@ import (
 	"path"
 	"strings"
 	"time"
+
+	"github.com/cenkalti/backoff/v4"
+	"github.com/huaweicloud/huaweicloud-sdk-go-obs/obs"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend/layout"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend/location"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend/util"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/errors"
 )
 
-var _ restic.Backend = &HwObs{}
+var _ backend.Backend = &HwObs{}
 
 const defaultLayout = "default"
 
@@ -105,11 +106,11 @@ func (h *HwObs) ReadDir(ctx context.Context, dir string) (list []os.FileInfo, er
 	return list, nil
 }
 
-func Open(ctx context.Context, cfg Config, rt http.RoundTripper) (restic.Backend, error) {
+func Open(ctx context.Context, cfg Config, rt http.RoundTripper) (backend.Backend, error) {
 	return open(ctx, cfg, rt)
 }
 
-func Create(ctx context.Context, cfg Config, rt http.RoundTripper) (restic.Backend, error) {
+func Create(ctx context.Context, cfg Config, rt http.RoundTripper) (backend.Backend, error) {
 	be, err := open(ctx, cfg, rt)
 	if err != nil {
 		return nil, errors.Wrap(err, "open")
@@ -132,12 +133,7 @@ func open(ctx context.Context, cfg Config, rt http.RoundTripper) (*HwObs, error)
 		cfg:    cfg,
 	}
 
-	l, err := layout.ParseLayout(ctx, be, cfg.Layout, defaultLayout, cfg.Prefix)
-	if err != nil {
-		return nil, err
-	}
-
-	be.Layout = l
+	be.Layout = layout.NewDefaultLayout(cfg.Prefix, path.Join)
 
 	return be, nil
 }
@@ -150,7 +146,7 @@ func (h *HwObs) Hasher() hash.Hash {
 	return nil
 }
 
-func (h *HwObs) Remove(ctx context.Context, handle restic.Handle) error {
+func (h *HwObs) Remove(ctx context.Context, handle backend.Handle) error {
 	objName := h.Filename(handle)
 	input := &obs.DeleteObjectInput{
 		Bucket: h.cfg.BucketName,
@@ -173,7 +169,7 @@ func (h *HwObs) Close() error {
 	return nil
 }
 
-func (h *HwObs) Save(ctx context.Context, handle restic.Handle, rd restic.RewindReader) error {
+func (h *HwObs) Save(ctx context.Context, handle backend.Handle, rd backend.RewindReader) error {
 	if err := handle.Valid(); err != nil {
 		return backoff.Permanent(err)
 	}
@@ -199,13 +195,13 @@ func (h *HwObs) Save(ctx context.Context, handle restic.Handle, rd restic.Rewind
 	return errors.Wrap(err, "client.PutObject")
 }
 
-func (h *HwObs) Load(ctx context.Context, handle restic.Handle, length int, offset int64, fn func(rd io.Reader) error) error {
+func (h *HwObs) Load(ctx context.Context, handle backend.Handle, length int, offset int64, fn func(rd io.Reader) error) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	return backend.DefaultLoad(ctx, handle, length, offset, h.openReader, fn)
+	return util.DefaultLoad(ctx, handle, length, offset, h.openReader, fn)
 }
 
-func (h *HwObs) openReader(ctx context.Context, handle restic.Handle, length int, offset int64) (io.ReadCloser, error) {
+func (h *HwObs) openReader(ctx context.Context, handle backend.Handle, length int, offset int64) (io.ReadCloser, error) {
 
 	if err := handle.Valid(); err != nil {
 		return nil, backoff.Permanent(err)
@@ -243,7 +239,7 @@ func (h *HwObs) openReader(ctx context.Context, handle restic.Handle, length int
 	return rd, err
 }
 
-func (h *HwObs) Stat(ctx context.Context, handle restic.Handle) (restic.FileInfo, error) {
+func (h *HwObs) Stat(ctx context.Context, handle backend.Handle) (backend.FileInfo, error) {
 	objName := h.Filename(handle)
 	input := &obs.GetObjectMetadataInput{
 		Bucket: h.cfg.BucketName,
@@ -251,12 +247,12 @@ func (h *HwObs) Stat(ctx context.Context, handle restic.Handle) (restic.FileInfo
 	}
 	object, err := h.client.GetObjectMetadata(input)
 	if err != nil {
-		return restic.FileInfo{}, err
+		return backend.FileInfo{}, err
 	}
-	return restic.FileInfo{Size: object.ContentLength, Name: handle.Name}, nil
+	return backend.FileInfo{Size: object.ContentLength, Name: handle.Name}, nil
 }
 
-func (h *HwObs) List(ctx context.Context, t restic.FileType, fn func(restic.FileInfo) error) error {
+func (h *HwObs) List(ctx context.Context, t backend.FileType, fn func(backend.FileInfo) error) error {
 	prefix, _ := h.Basedir(t)
 
 	if !strings.HasSuffix(prefix, "/") {
@@ -291,7 +287,7 @@ func (h *HwObs) List(ctx context.Context, t restic.FileType, fn func(restic.File
 			if m == "" {
 				continue
 			}
-			fi := restic.FileInfo{
+			fi := backend.FileInfo{
 				Name: path.Base(m),
 				Size: con.Size,
 			}
@@ -346,8 +342,27 @@ func (h *HwObs) IsAccessDenied(err error) bool {
 	}
 }
 
+func (h *HwObs) IsPermanentError(err error) bool {
+	return h.IsNotExist(err) || h.IsAccessDenied(err)
+}
+
+func (h *HwObs) Properties() backend.Properties {
+	return backend.Properties{
+		Connections:      h.Connections(),
+		HasAtomicReplace: h.HasAtomicReplace(),
+	}
+}
+
+func (h *HwObs) Warmup(_ context.Context, _ []backend.Handle) ([]backend.Handle, error) {
+	return nil, nil
+}
+
+func (h *HwObs) WarmupWait(_ context.Context, _ []backend.Handle) error {
+	return nil
+}
+
 func (h *HwObs) Delete(ctx context.Context) error {
-	return backend.DefaultDelete(ctx, h)
+	return util.DefaultDelete(ctx, h)
 }
 
 // Join combines path components with slashes.

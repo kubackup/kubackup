@@ -4,13 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/cenkalti/backoff/v4"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend/layout"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend/location"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/errors"
-	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/restic"
-	"github.com/tencentyun/cos-go-sdk-v5"
 	"hash"
 	"io"
 	"net/http"
@@ -20,9 +13,17 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/cenkalti/backoff/v4"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend/layout"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend/location"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/backend/util"
+	"github.com/kubackup/kubackup/pkg/restic_source/rinternal/errors"
+	"github.com/tencentyun/cos-go-sdk-v5"
 )
 
-var _ restic.Backend = &TxCos{}
+var _ backend.Backend = &TxCos{}
 
 const defaultLayout = "default"
 
@@ -115,11 +116,11 @@ func (t *TxCos) ReadDir(ctx context.Context, dir string) (list []os.FileInfo, er
 	return list, nil
 }
 
-func Open(ctx context.Context, cfg Config, rt http.RoundTripper) (restic.Backend, error) {
+func Open(ctx context.Context, cfg Config, rt http.RoundTripper) (backend.Backend, error) {
 	return open(ctx, cfg, rt)
 }
 
-func Create(ctx context.Context, cfg Config, rt http.RoundTripper) (restic.Backend, error) {
+func Create(ctx context.Context, cfg Config, rt http.RoundTripper) (backend.Backend, error) {
 	be, err := open(ctx, cfg, rt)
 	if err != nil {
 		return nil, errors.Wrap(err, "open")
@@ -152,12 +153,7 @@ func open(ctx context.Context, cfg Config, rt http.RoundTripper) (*TxCos, error)
 		cfg:    cfg,
 	}
 
-	l, err := layout.ParseLayout(ctx, be, cfg.Layout, defaultLayout, cfg.Prefix)
-	if err != nil {
-		return nil, err
-	}
-
-	be.Layout = l
+	be.Layout = layout.NewDefaultLayout(cfg.Prefix, path.Join)
 
 	return be, nil
 }
@@ -170,7 +166,7 @@ func (t *TxCos) Hasher() hash.Hash {
 	return nil
 }
 
-func (t *TxCos) Remove(ctx context.Context, handle restic.Handle) error {
+func (t *TxCos) Remove(ctx context.Context, handle backend.Handle) error {
 	objName := t.Filename(handle)
 	_, err := t.client.Object.Delete(ctx, objName)
 	if t.IsAccessDenied(err) {
@@ -189,7 +185,7 @@ func (t *TxCos) Close() error {
 	return nil
 }
 
-func (t *TxCos) Save(ctx context.Context, handle restic.Handle, rd restic.RewindReader) error {
+func (t *TxCos) Save(ctx context.Context, handle backend.Handle, rd backend.RewindReader) error {
 	if err := handle.Valid(); err != nil {
 		return backoff.Permanent(err)
 	}
@@ -215,11 +211,11 @@ func (t *TxCos) Save(ctx context.Context, handle restic.Handle, rd restic.Rewind
 	return errors.Wrap(err, "client.PutObject")
 }
 
-func (t *TxCos) Load(ctx context.Context, handle restic.Handle, length int, offset int64, fn func(rd io.Reader) error) error {
-	return backend.DefaultLoad(ctx, handle, length, offset, t.openReader, fn)
+func (t *TxCos) Load(ctx context.Context, handle backend.Handle, length int, offset int64, fn func(rd io.Reader) error) error {
+	return util.DefaultLoad(ctx, handle, length, offset, t.openReader, fn)
 }
 
-func (t *TxCos) openReader(ctx context.Context, handle restic.Handle, length int, offset int64) (io.ReadCloser, error) {
+func (t *TxCos) openReader(ctx context.Context, handle backend.Handle, length int, offset int64) (io.ReadCloser, error) {
 
 	if err := handle.Valid(); err != nil {
 		return nil, backoff.Permanent(err)
@@ -254,22 +250,22 @@ func (t *TxCos) openReader(ctx context.Context, handle restic.Handle, length int
 	return rd, err
 }
 
-func (t *TxCos) Stat(ctx context.Context, handle restic.Handle) (restic.FileInfo, error) {
+func (t *TxCos) Stat(ctx context.Context, handle backend.Handle) (backend.FileInfo, error) {
 	objName := t.Filename(handle)
 
 	resp, err := t.client.Object.Head(ctx, objName, nil)
 	if err != nil {
-		return restic.FileInfo{}, err
+		return backend.FileInfo{}, err
 	}
 	length := resp.Header.Get("Content-Length")
 	size, err := strconv.ParseInt(length, 10, 64)
 	if err != nil {
-		return restic.FileInfo{}, err
+		return backend.FileInfo{}, err
 	}
-	return restic.FileInfo{Size: size, Name: handle.Name}, nil
+	return backend.FileInfo{Size: size, Name: handle.Name}, nil
 }
 
-func (t *TxCos) listv1(ctx context.Context, prefix string, fn func(restic.FileInfo) error) error {
+func (t *TxCos) listv1(ctx context.Context, prefix string, fn func(backend.FileInfo) error) error {
 
 	var marker string
 	opt := &cos.BucketGetOptions{
@@ -299,7 +295,7 @@ func (t *TxCos) listv1(ctx context.Context, prefix string, fn func(restic.FileIn
 			if name == "" {
 				continue
 			}
-			fi := restic.FileInfo{
+			fi := backend.FileInfo{
 				Name: path.Base(name),
 				Size: con.Size,
 			}
@@ -326,7 +322,7 @@ func (t *TxCos) listv1(ctx context.Context, prefix string, fn func(restic.FileIn
 	return nil
 }
 
-func (t *TxCos) List(ctx context.Context, ty restic.FileType, fn func(restic.FileInfo) error) error {
+func (t *TxCos) List(ctx context.Context, ty backend.FileType, fn func(backend.FileInfo) error) error {
 	prefix, _ := t.Basedir(ty)
 
 	if !strings.HasSuffix(prefix, "/") {
@@ -371,8 +367,27 @@ func (t *TxCos) IsAccessDenied(err error) bool {
 	}
 }
 
+func (t *TxCos) IsPermanentError(err error) bool {
+	return t.IsNotExist(err) || t.IsAccessDenied(err)
+}
+
+func (t *TxCos) Properties() backend.Properties {
+	return backend.Properties{
+		Connections:      t.Connections(),
+		HasAtomicReplace: t.HasAtomicReplace(),
+	}
+}
+
+func (t *TxCos) Warmup(_ context.Context, _ []backend.Handle) ([]backend.Handle, error) {
+	return nil, nil
+}
+
+func (t *TxCos) WarmupWait(_ context.Context, _ []backend.Handle) error {
+	return nil
+}
+
 func (t *TxCos) Delete(ctx context.Context) error {
-	return backend.DefaultDelete(ctx, t)
+	return util.DefaultDelete(ctx, t)
 }
 
 // Join combines path components with slashes.
